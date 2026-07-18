@@ -1278,19 +1278,21 @@ class TtsResultMessage {
   }
 }
 
-/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the caller's
+/// stream token so concurrent syntheses never interleave.
 class TtsChunkMessage {
   TtsChunkMessage({
-    required this.instanceId,
+    required this.streamToken,
     required this.samples,
     required this.frameIndex,
     required this.chunkIndex,
     required this.chunkCount,
+    required this.isLast,
   });
 
-  int instanceId;
+  int streamToken;
 
-  /// Float32 PCM bytes.
+  /// Float32 PCM bytes (empty on the [isLast] sentinel).
   Uint8List samples;
 
   int frameIndex;
@@ -1299,13 +1301,18 @@ class TtsChunkMessage {
 
   int chunkCount;
 
+  /// End-of-stream sentinel: emitted after the final frame, in order on the
+  /// same channel, so the Dart stream closes without cross-channel races.
+  bool isLast;
+
   List<Object?> _toList() {
     return <Object?>[
-      instanceId,
+      streamToken,
       samples,
       frameIndex,
       chunkIndex,
       chunkCount,
+      isLast,
     ];
   }
 
@@ -1315,11 +1322,12 @@ class TtsChunkMessage {
   static TtsChunkMessage decode(Object result) {
     result as List<Object?>;
     return TtsChunkMessage(
-      instanceId: result[0]! as int,
+      streamToken: result[0]! as int,
       samples: result[1]! as Uint8List,
       frameIndex: result[2]! as int,
       chunkIndex: result[3]! as int,
       chunkCount: result[4]! as int,
+      isLast: result[5]! as bool,
     );
   }
 
@@ -1332,7 +1340,7 @@ class TtsChunkMessage {
     if (identical(this, other)) {
       return true;
     }
-    return _deepEquals(instanceId, other.instanceId) && _deepEquals(samples, other.samples) && _deepEquals(frameIndex, other.frameIndex) && _deepEquals(chunkIndex, other.chunkIndex) && _deepEquals(chunkCount, other.chunkCount);
+    return _deepEquals(streamToken, other.streamToken) && _deepEquals(samples, other.samples) && _deepEquals(frameIndex, other.frameIndex) && _deepEquals(chunkIndex, other.chunkIndex) && _deepEquals(chunkCount, other.chunkCount) && _deepEquals(isLast, other.isLast);
   }
 
   @override
@@ -1341,7 +1349,7 @@ class TtsChunkMessage {
 
   @override
   String toString() {
-    return 'TtsChunkMessage(instanceId: $instanceId, samples: $samples, frameIndex: $frameIndex, chunkIndex: $chunkIndex, chunkCount: $chunkCount)';
+    return 'TtsChunkMessage(streamToken: $streamToken, samples: $samples, frameIndex: $frameIndex, chunkIndex: $chunkIndex, chunkCount: $chunkCount, isLast: $isLast)';
   }
 }
 
@@ -2038,14 +2046,16 @@ class VadHostApi {
 
   /// Creates a streaming state on an existing VAD instance; events arrive on
   /// the `vadEvents` stream tagged with the returned stream id.
-  Future<int> createStream(int instanceId, double? minSpeechDuration, double? minSilenceDuration) async {
+  /// (Only [minSilenceDuration] applies: the streaming state machine has no
+  /// min-speech gate in FluidAudio 0.15.x.)
+  Future<int> createStream(int instanceId, double? minSilenceDuration) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.createStream$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, minSpeechDuration, minSilenceDuration]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, minSilenceDuration]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2631,16 +2641,16 @@ class TtsHostApi {
     return pigeonVar_replyValue! as Uint8List;
   }
 
-  /// Streams synthesis frames on the `ttsChunks` channel tagged with
-  /// [instanceId]; the returned future completes when the stream ends.
-  Future<void> pocketSynthesizeStreaming(int instanceId, String text, String? voice, double temperature) async {
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with the
+  /// caller-chosen [streamToken]; an `isLast` sentinel closes the stream.
+  Future<void> pocketSynthesizeStreaming(int instanceId, String text, String? voice, double temperature, int streamToken) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeStreaming$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, temperature]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, temperature, streamToken]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

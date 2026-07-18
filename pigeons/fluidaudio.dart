@@ -279,8 +279,10 @@ abstract class VadHostApi {
 
   /// Creates a streaming state on an existing VAD instance; events arrive on
   /// the `vadEvents` stream tagged with the returned stream id.
+  /// (Only [minSilenceDuration] applies: the streaming state machine has no
+  /// min-speech gate in FluidAudio 0.15.x.)
   @async
-  int createStream(int instanceId, double? minSpeechDuration, double? minSilenceDuration);
+  int createStream(int instanceId, double? minSilenceDuration);
 
   /// Feeds one 4096-sample chunk; processed strictly in call order.
   @async
@@ -532,23 +534,29 @@ class TtsResultMessage {
   Uint8List wav;
 }
 
-/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the caller's
+/// stream token so concurrent syntheses never interleave.
 class TtsChunkMessage {
   TtsChunkMessage({
-    required this.instanceId,
+    required this.streamToken,
     required this.samples,
     required this.frameIndex,
     required this.chunkIndex,
     required this.chunkCount,
+    required this.isLast,
   });
 
-  int instanceId;
+  int streamToken;
 
-  /// Float32 PCM bytes.
+  /// Float32 PCM bytes (empty on the [isLast] sentinel).
   Uint8List samples;
   int frameIndex;
   int chunkIndex;
   int chunkCount;
+
+  /// End-of-stream sentinel: emitted after the final frame, in order on the
+  /// same channel, so the Dart stream closes without cross-channel races.
+  bool isLast;
 }
 
 @HostApi()
@@ -573,11 +581,11 @@ abstract class TtsHostApi {
   @async
   Uint8List pocketSynthesizeWav(int instanceId, String text, String? voice, double temperature);
 
-  /// Streams synthesis frames on the `ttsChunks` channel tagged with
-  /// [instanceId]; the returned future completes when the stream ends.
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with the
+  /// caller-chosen [streamToken]; an `isLast` sentinel closes the stream.
   @async
   void pocketSynthesizeStreaming(
-      int instanceId, String text, String? voice, double temperature);
+      int instanceId, String text, String? voice, double temperature, int streamToken);
 
   /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
   /// voice id usable with [pocketSynthesizeWithVoice].

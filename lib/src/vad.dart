@@ -7,11 +7,16 @@ import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// Voice activity detection (Silero, CoreML).
 class FluidVad {
-  FluidVad._(this._hostApi, this._instanceId, this._events);
+  FluidVad._(this._hostApi, this._instanceId, this._events) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.VadHostApi _hostApi;
   final int _instanceId;
@@ -49,13 +54,14 @@ class FluidVad {
 
   /// Opens a streaming session emitting per-chunk ticks and
   /// speech-start/speech-end events.
-  Future<FluidVadStream> stream({
-    double? minSpeechDuration,
-    double? minSilenceDuration,
-  }) async {
+  ///
+  /// [minSilenceDuration] controls how much silence closes a speech segment.
+  /// (FluidAudio's streaming state machine has no min-speech gate, so no
+  /// such knob is exposed here.)
+  Future<FluidVadStream> stream({double? minSilenceDuration}) async {
     _checkNotDisposed();
     final streamId = await wrapPlatformErrors(
-        () => _hostApi.createStream(_instanceId, minSpeechDuration, minSilenceDuration));
+        () => _hostApi.createStream(_instanceId, minSilenceDuration));
     return FluidVadStream._(_hostApi, streamId, _events);
   }
 
@@ -63,6 +69,7 @@ class FluidVad {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 
@@ -75,7 +82,11 @@ class FluidVad {
 
 /// A live VAD stream; feed 4096-sample chunks and listen to [events].
 class FluidVadStream {
-  FluidVadStream._(this._hostApi, this._streamId, this._events);
+  FluidVadStream._(this._hostApi, this._streamId, this._events) {
+    final api = _hostApi;
+    final id = _streamId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.disposeStream(id)), detach: this);
+  }
 
   final messages.VadHostApi _hostApi;
   final int _streamId;
@@ -107,6 +118,7 @@ class FluidVadStream {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.disposeStream(_streamId));
   }
 

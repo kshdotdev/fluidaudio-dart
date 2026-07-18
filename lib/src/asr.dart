@@ -6,6 +6,7 @@ import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// Batch speech-to-text (Parakeet TDT).
@@ -13,7 +14,11 @@ import 'types.dart';
 /// One-shot calls are stateless: a fresh native decoder state is created per
 /// transcription, so results never leak between calls.
 class FluidAsr {
-  FluidAsr._(this._hostApi, this._instanceId);
+  FluidAsr._(this._hostApi, this._instanceId) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.AsrHostApi _hostApi;
   final int _instanceId;
@@ -67,6 +72,7 @@ class FluidAsr {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 

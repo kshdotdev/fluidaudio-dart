@@ -1,6 +1,7 @@
 import AVFoundation
 import FluidAudio
 import Foundation
+import os
 
 #if os(iOS)
   import Flutter
@@ -46,10 +47,13 @@ final class MicFramesHandler: MicFramesStreamHandler {
   }
 
   func emit(samples: [Float]) {
-    guard sink != nil, !samples.isEmpty else { return }
+    guard !samples.isEmpty else { return }
     let sumOfSquares = samples.reduce(Float(0)) { $0 + $1 * $1 }
     let rms = Double((sumOfSquares / Float(samples.count)).squareRoot())
     let message = MicFrameMessage(samples: AudioBridge.typedData(from: samples), rms: rms)
+    // `sink` is only touched on the main thread (onListen/onCancel run there),
+    // so the emptiness check must also happen there — never on the caller's
+    // background queue.
     if Thread.isMainThread {
       sink?.success(message)
     } else {
@@ -71,7 +75,20 @@ final class MicCapture {
   private let engine = AVAudioEngine()
   private let queue = SerialTaskQueue()
   private let converter = AudioConverter()
-  private(set) var running = false
+
+  /// Read on the real-time audio thread, written from the platform thread —
+  /// must be lock-protected (plain Bool access across threads is a data race).
+  private let runningState = OSAllocatedUnfairLock(initialState: false)
+
+  var running: Bool {
+    runningState.withLock { $0 }
+  }
+
+  deinit {
+    // Belt-and-braces: never leave a hot microphone behind if the capture
+    // object is dropped without an explicit stop().
+    stop()
+  }
 
   func start(
     attachments: Attachments,
@@ -118,15 +135,23 @@ final class MicCapture {
 
     engine.prepare()
     try engine.start()
-    running = true
+    runningState.withLock { $0 = true }
   }
 
   func stop() {
-    guard running else { return }
-    running = false
+    let wasRunning = runningState.withLock { state in
+      let previous = state
+      state = false
+      return previous
+    }
+    guard wasRunning else { return }
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
     queue.shutdown()
+    #if os(iOS)
+      try? AVAudioSession.sharedInstance().setActive(
+        false, options: .notifyOthersOnDeactivation)
+    #endif
   }
 
   private static func copyBuffer(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
@@ -214,6 +239,13 @@ final class MicrophoneHostApiImpl: MicrophoneHostApi {
     capture?.stop()
     capture = nil
     completion(.success(()))
+  }
+
+  /// Stops any live capture; used by plugin teardown (engine detach or
+  /// re-registration), where no channel call will ever arrive.
+  func teardown() {
+    capture?.stop()
+    capture = nil
   }
 
   func isRunning(completion: @escaping (Result<Bool, Error>) -> Void) {

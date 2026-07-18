@@ -26,17 +26,48 @@ class FluidModels {
       wrapPlatformErrors(() => _hostApi.isDownloaded(_kind(kind)));
 
   /// Downloads [kind], emitting progress. The stream closes when the download
-  /// completes and errors with [FluidDownloadProgressFailure] on failure.
+  /// completes and errors with a typed [FluidAudioException] on failure.
+  ///
+  /// Terminal state is driven by the method-channel result — never by
+  /// progress events, which are advisory and can race the subscription (a
+  /// cache hit may emit nothing at all).
   Stream<FluidDownloadProgress> download(ModelKind kind) {
     final token = _events.allocateProgressToken();
-    final progress = _events.progressFor(token);
-    // Fire the download; its terminal event closes the stream.
-    unawaited(
-      _hostApi.download(_kind(kind), token).catchError((Object _) {
-        // The failure surfaces on the progress stream as a `failed` event.
-      }),
+    late StreamController<FluidDownloadProgress> controller;
+    StreamSubscription<FluidDownloadProgress>? subscription;
+    controller = StreamController<FluidDownloadProgress>(
+      onListen: () {
+        subscription = _events.progressFor(token).listen(
+          (progress) {
+            if (!controller.isClosed) controller.add(progress);
+          },
+          onError: (Object _) {
+            // Failure is reported through the method-channel result below.
+          },
+          onDone: () {
+            // Advisory only; the method-channel result closes the stream.
+          },
+        );
+        // Fire the native download only once the progress listener is live.
+        _hostApi.download(_kind(kind), token).then(
+          (_) {
+            if (!controller.isClosed) controller.close();
+          },
+          onError: (Object error) {
+            if (!controller.isClosed) {
+              try {
+                rethrowTyped(error);
+              } catch (typed) {
+                controller.addError(typed);
+              }
+              controller.close();
+            }
+          },
+        );
+      },
+      onCancel: () => subscription?.cancel(),
     );
-    return progress;
+    return controller.stream;
   }
 
   /// Removes [kind]'s cached files from disk.

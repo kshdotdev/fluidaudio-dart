@@ -38,6 +38,41 @@ final class InstanceRegistry {
     instances.removeAll()
     return all
   }
+
+  /// Best-effort native teardown of every live instance — used when the
+  /// Flutter engine detaches or the plugin re-registers, where no dispose
+  /// calls will ever arrive from Dart.
+  func shutdownAll() {
+    for instance in removeAll() {
+      switch instance {
+      case let streaming as StreamingAsrInstance:
+        let manager = streaming.manager
+        streaming.queue.enqueue {
+          await manager.cleanup()
+          streaming.shutdown()
+        }
+      case let eou as EouInstance:
+        let manager = eou.manager
+        eou.queue.enqueue {
+          await manager.cleanup()
+          eou.queue.shutdown()
+        }
+      case let vadStream as VadStreamInstance:
+        vadStream.queue.shutdown()
+      case let asr as AsrInstance:
+        let manager = asr.manager
+        Task { await manager.cleanup() }
+      case let kokoro as KokoroInstance:
+        let manager = kokoro.manager
+        Task { await manager.cleanup() }
+      case let pocket as PocketInstance:
+        let manager = pocket.manager
+        Task { await manager.cleanup() }
+      default:
+        break
+      }
+    }
+  }
 }
 
 /// Runs async operations strictly in enqueue order, one at a time.

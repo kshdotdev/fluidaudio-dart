@@ -6,6 +6,7 @@ import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// EOU model chunk size (latency/accuracy trade-off).
@@ -17,7 +18,11 @@ enum EouChunkSize { ms160, ms320, ms1280 }
 /// [utterances] fires once per detected end-of-utterance with the utterance
 /// transcript.
 class FluidEou {
-  FluidEou._(this._hostApi, this._instanceId, this._events);
+  FluidEou._(this._hostApi, this._instanceId, this._events) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.EouHostApi _hostApi;
   final int _instanceId;
@@ -84,6 +89,7 @@ class FluidEou {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 

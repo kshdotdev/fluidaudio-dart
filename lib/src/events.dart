@@ -80,9 +80,9 @@ class FluidEventHub {
   Stream<messages.MicFrameMessage> get micFrames =>
       _micFrames ??= messages.micFrames().asBroadcastStream();
 
-  /// Synthesis frames for one TTS session.
-  Stream<messages.TtsChunkMessage> ttsChunksFor(int instanceId) {
-    return ttsChunks.where((chunk) => chunk.instanceId == instanceId);
+  /// Synthesis frames for one streaming-synthesis call.
+  Stream<messages.TtsChunkMessage> ttsChunksFor(int streamToken) {
+    return ttsChunks.where((chunk) => chunk.streamToken == streamToken);
   }
 
   /// Updates for one streaming-ASR session.

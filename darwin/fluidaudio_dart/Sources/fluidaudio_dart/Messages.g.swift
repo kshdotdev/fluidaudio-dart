@@ -1192,61 +1192,69 @@ struct TtsResultMessage: Hashable, CustomStringConvertible {
   }
 }
 
-/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the caller's
+/// stream token so concurrent syntheses never interleave.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
 struct TtsChunkMessage: Hashable, CustomStringConvertible {
-  var instanceId: Int64
-  /// Float32 PCM bytes.
+  var streamToken: Int64
+  /// Float32 PCM bytes (empty on the [isLast] sentinel).
   var samples: FlutterStandardTypedData
   var frameIndex: Int64
   var chunkIndex: Int64
   var chunkCount: Int64
+  /// End-of-stream sentinel: emitted after the final frame, in order on the
+  /// same channel, so the Dart stream closes without cross-channel races.
+  var isLast: Bool
 
 
   // swift-format-ignore: AlwaysUseLowerCamelCase
   static func fromList(_ pigeonVar_list: [Any?]) -> TtsChunkMessage? {
-    let instanceId = pigeonVar_list[0] as! Int64
+    let streamToken = pigeonVar_list[0] as! Int64
     let samples = pigeonVar_list[1] as! FlutterStandardTypedData
     let frameIndex = pigeonVar_list[2] as! Int64
     let chunkIndex = pigeonVar_list[3] as! Int64
     let chunkCount = pigeonVar_list[4] as! Int64
+    let isLast = pigeonVar_list[5] as! Bool
 
     return TtsChunkMessage(
-      instanceId: instanceId,
+      streamToken: streamToken,
       samples: samples,
       frameIndex: frameIndex,
       chunkIndex: chunkIndex,
-      chunkCount: chunkCount
+      chunkCount: chunkCount,
+      isLast: isLast
     )
   }
   func toList() -> [Any?] {
     return [
-      instanceId,
+      streamToken,
       samples,
       frameIndex,
       chunkIndex,
       chunkCount,
+      isLast,
     ]
   }
   static func == (lhs: TtsChunkMessage, rhs: TtsChunkMessage) -> Bool {
     if Swift.type(of: lhs) != Swift.type(of: rhs) {
       return false
     }
-    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.samples, rhs.samples) && MessagesPigeonInternal.deepEquals(lhs.frameIndex, rhs.frameIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkIndex, rhs.chunkIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkCount, rhs.chunkCount)
+    return MessagesPigeonInternal.deepEquals(lhs.streamToken, rhs.streamToken) && MessagesPigeonInternal.deepEquals(lhs.samples, rhs.samples) && MessagesPigeonInternal.deepEquals(lhs.frameIndex, rhs.frameIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkIndex, rhs.chunkIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkCount, rhs.chunkCount) && MessagesPigeonInternal.deepEquals(lhs.isLast, rhs.isLast)
   }
 
   func hash(into hasher: inout Hasher) {
     hasher.combine("TtsChunkMessage")
-    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: streamToken, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: samples, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: frameIndex, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: chunkIndex, hasher: &hasher)
     MessagesPigeonInternal.deepHash(value: chunkCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isLast, hasher: &hasher)
   }
 
   public var description: String {
-    return "TtsChunkMessage(instanceId: \(String(describing: instanceId)), samples: \(String(describing: samples)), frameIndex: \(String(describing: frameIndex)), chunkIndex: \(String(describing: chunkIndex)), chunkCount: \(String(describing: chunkCount)))"
+    return "TtsChunkMessage(streamToken: \(String(describing: streamToken)), samples: \(String(describing: samples)), frameIndex: \(String(describing: frameIndex)), chunkIndex: \(String(describing: chunkIndex)), chunkCount: \(String(describing: chunkCount)), isLast: \(String(describing: isLast)))"
   }
 }
 
@@ -1924,7 +1932,9 @@ protocol VadHostApi {
   func processSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<[VadResultMessage], Error>) -> Void)
   /// Creates a streaming state on an existing VAD instance; events arrive on
   /// the `vadEvents` stream tagged with the returned stream id.
-  func createStream(instanceId: Int64, minSpeechDuration: Double?, minSilenceDuration: Double?, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// (Only [minSilenceDuration] applies: the streaming state machine has no
+  /// min-speech gate in FluidAudio 0.15.x.)
+  func createStream(instanceId: Int64, minSilenceDuration: Double?, completion: @escaping (Result<Int64, Error>) -> Void)
   /// Feeds one 4096-sample chunk; processed strictly in call order.
   func feedStream(streamId: Int64, float32Chunk: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
   func resetStream(streamId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
@@ -1978,14 +1988,15 @@ class VadHostApiSetup {
     }
     /// Creates a streaming state on an existing VAD instance; events arrive on
     /// the `vadEvents` stream tagged with the returned stream id.
+    /// (Only [minSilenceDuration] applies: the streaming state machine has no
+    /// min-speech gate in FluidAudio 0.15.x.)
     let createStreamChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.createStream\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       createStreamChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let instanceIdArg = args[0] as! Int64
-        let minSpeechDurationArg: Double? = nilOrValue(args[1])
-        let minSilenceDurationArg: Double? = nilOrValue(args[2])
-        api.createStream(instanceId: instanceIdArg, minSpeechDuration: minSpeechDurationArg, minSilenceDuration: minSilenceDurationArg) { result in
+        let minSilenceDurationArg: Double? = nilOrValue(args[1])
+        api.createStream(instanceId: instanceIdArg, minSilenceDuration: minSilenceDurationArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -2476,9 +2487,9 @@ protocol TtsHostApi {
   /// Downloads/loads PocketTTS models; returns an instance id.
   func pocketCreate(defaultVoice: String?, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   func pocketSynthesizeWav(instanceId: Int64, text: String, voice: String?, temperature: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
-  /// Streams synthesis frames on the `ttsChunks` channel tagged with
-  /// [instanceId]; the returned future completes when the stream ends.
-  func pocketSynthesizeStreaming(instanceId: Int64, text: String, voice: String?, temperature: Double, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with the
+  /// caller-chosen [streamToken]; an `isLast` sentinel closes the stream.
+  func pocketSynthesizeStreaming(instanceId: Int64, text: String, voice: String?, temperature: Double, streamToken: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
   /// voice id usable with [pocketSynthesizeWithVoice].
   func pocketCloneVoice(instanceId: Int64, float32Samples24k: FlutterStandardTypedData, completion: @escaping (Result<Int64, Error>) -> Void)
@@ -2593,8 +2604,8 @@ class TtsHostApiSetup {
     } else {
       pocketSynthesizeWavChannel.setMessageHandler(nil)
     }
-    /// Streams synthesis frames on the `ttsChunks` channel tagged with
-    /// [instanceId]; the returned future completes when the stream ends.
+    /// Streams synthesis frames on the `ttsChunks` channel tagged with the
+    /// caller-chosen [streamToken]; an `isLast` sentinel closes the stream.
     let pocketSynthesizeStreamingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeStreaming\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       pocketSynthesizeStreamingChannel.setMessageHandler { message, reply in
@@ -2603,7 +2614,8 @@ class TtsHostApiSetup {
         let textArg = args[1] as! String
         let voiceArg: String? = nilOrValue(args[2])
         let temperatureArg = args[3] as! Double
-        api.pocketSynthesizeStreaming(instanceId: instanceIdArg, text: textArg, voice: voiceArg, temperature: temperatureArg) { result in
+        let streamTokenArg = args[4] as! Int64
+        api.pocketSynthesizeStreaming(instanceId: instanceIdArg, text: textArg, voice: voiceArg, temperature: temperatureArg, streamToken: streamTokenArg) { result in
           switch result {
           case .success:
             reply(wrapResult(nil))

@@ -86,8 +86,7 @@ class _FakeVadHostApi implements messages.VadHostApi {
   }
 
   @override
-  Future<int> createStream(
-      int instanceId, double? minSpeechDuration, double? minSilenceDuration) async {
+  Future<int> createStream(int instanceId, double? minSilenceDuration) async {
     return 21;
   }
 

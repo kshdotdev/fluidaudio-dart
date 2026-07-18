@@ -20,6 +20,7 @@ class _FakeTtsHostApi implements messages.TtsHostApi {
   String? lastText;
   double? lastSpeed;
   double? lastTemperature;
+  int? lastStreamToken;
 
   @override
   Future<int> kokoroCreate(
@@ -57,7 +58,8 @@ class _FakeTtsHostApi implements messages.TtsHostApi {
 
   @override
   Future<void> pocketSynthesizeStreaming(
-      int instanceId, String text, String? voice, double temperature) {
+      int instanceId, String text, String? voice, double temperature, int streamToken) {
+    lastStreamToken = streamToken;
     return streamedCompleter.future;
   }
 
@@ -114,7 +116,7 @@ void main() {
     expect(detailed.duration.inMicroseconds, greaterThan(0));
   });
 
-  test('FluidPocketTts streaming closes when native call completes', () async {
+  test('FluidPocketTts streaming demuxes by stream token and closes on sentinel', () async {
     final fake = _FakeTtsHostApi();
     final rawChunks = StreamController<messages.TtsChunkMessage>.broadcast();
     final hub = FluidEventHub.test(
@@ -129,25 +131,34 @@ void main() {
         .listen(received.add)
         .asFuture<void>()
         .timeout(const Duration(seconds: 1));
+    await Future<void>.delayed(Duration.zero);
 
+    final token = fake.lastStreamToken!;
     rawChunks
       ..add(messages.TtsChunkMessage(
-          instanceId: 62,
+          streamToken: token,
           samples: Float32List(1920).buffer.asUint8List(),
           frameIndex: 0,
           chunkIndex: 0,
-          chunkCount: 2))
+          chunkCount: 2,
+          isLast: false))
       ..add(messages.TtsChunkMessage(
-          instanceId: 99,
+          streamToken: token + 999,
           samples: Float32List(1920).buffer.asUint8List(),
           frameIndex: 0,
           chunkIndex: 0,
-          chunkCount: 1));
-    await Future<void>.delayed(Duration.zero);
-    fake.streamedCompleter.complete();
+          chunkCount: 1,
+          isLast: false))
+      ..add(messages.TtsChunkMessage(
+          streamToken: token,
+          samples: Uint8List(0),
+          frameIndex: -1,
+          chunkIndex: -1,
+          chunkCount: -1,
+          isLast: true));
     await done;
 
-    expect(received, hasLength(1), reason: 'chunks for session 99 filtered out');
+    expect(received, hasLength(1), reason: 'chunks for other tokens filtered out');
     expect(received.single.samples, hasLength(1920));
 
     final voice = await tts.cloneVoice(Float32List(48000));

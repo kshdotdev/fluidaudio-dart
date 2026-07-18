@@ -7,6 +7,7 @@ import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// Kokoro voice-model variants.
@@ -59,7 +60,11 @@ class FluidPocketVoice {
 /// Voices are identifier strings (English default `af_heart`); additional
 /// voices download on demand.
 class FluidKokoroTts {
-  FluidKokoroTts._(this._hostApi, this._instanceId);
+  FluidKokoroTts._(this._hostApi, this._instanceId) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.TtsHostApi _hostApi;
   final int _instanceId;
@@ -110,6 +115,7 @@ class FluidKokoroTts {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 
@@ -122,7 +128,11 @@ class FluidKokoroTts {
 
 /// PocketTTS: fast streaming text-to-speech with voice cloning (24 kHz).
 class FluidPocketTts {
-  FluidPocketTts._(this._hostApi, this._instanceId, this._events);
+  FluidPocketTts._(this._hostApi, this._instanceId, this._events) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.TtsHostApi _hostApi;
   final int _instanceId;
@@ -156,14 +166,31 @@ class FluidPocketTts {
   }
 
   /// Streams synthesis frames (80 ms each) as they are generated.
+  ///
+  /// Frames are tagged with a per-call token, so concurrent calls on the same
+  /// instance never interleave. The stream closes on the native end-of-stream
+  /// sentinel (ordered after the last frame on the same channel).
   Stream<FluidTtsChunk> synthesizeStreaming(String text,
       {String? voice, double temperature = 0.7}) {
     _checkNotDisposed();
+    final streamToken = _events.allocateProgressToken();
     late StreamController<FluidTtsChunk> controller;
     StreamSubscription<messages.TtsChunkMessage>? subscription;
+
+    Future<void> closeSafely() async {
+      await subscription?.cancel();
+      subscription = null;
+      if (!controller.isClosed) await controller.close();
+    }
+
     controller = StreamController<FluidTtsChunk>(
       onListen: () {
-        subscription = _events.ttsChunksFor(_instanceId).listen((chunk) {
+        subscription = _events.ttsChunksFor(streamToken).listen((chunk) {
+          if (controller.isClosed) return;
+          if (chunk.isLast) {
+            closeSafely();
+            return;
+          }
           controller.add(
             FluidTtsChunk(
               samples: bytesToFloats(chunk.samples),
@@ -173,12 +200,20 @@ class FluidPocketTts {
             ),
           );
         });
-        wrapPlatformErrors(
-                () => _hostApi.pocketSynthesizeStreaming(_instanceId, text, voice, temperature))
-            .then((_) => controller.close(), onError: (Object error) {
-          controller.addError(error);
-          controller.close();
-        });
+        wrapPlatformErrors(() => _hostApi.pocketSynthesizeStreaming(
+            _instanceId, text, voice, temperature, streamToken)).then(
+          (_) {
+            // Success closes via the isLast sentinel; this is only a backstop
+            // in case the sentinel was lost (e.g. listener raced teardown).
+            Future<void>.delayed(const Duration(seconds: 2), () {
+              if (!controller.isClosed) closeSafely();
+            });
+          },
+          onError: (Object error) {
+            if (!controller.isClosed) controller.addError(error);
+            closeSafely();
+          },
+        );
       },
       onCancel: () => subscription?.cancel(),
     );
@@ -204,6 +239,7 @@ class FluidPocketTts {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 

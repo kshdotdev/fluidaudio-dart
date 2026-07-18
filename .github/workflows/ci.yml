@@ -56,3 +56,36 @@ jobs:
           cache: true
       - run: flutter build ios --no-codesign --debug
         working-directory: example
+
+  native-tests:
+    name: Swift RunnerTests (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build macos --debug
+        working-directory: example
+      - name: Run RunnerTests
+        run: >-
+          xcodebuild test
+          -workspace example/macos/Runner.xcworkspace
+          -scheme Runner
+          -destination 'platform=macOS'
+
+  channel-e2e:
+    name: Channel integration tests (macOS, no models)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - name: Run model-free integration tests
+        run: flutter test integration_test/plugin_integration_test.dart -d macos
+        working-directory: example

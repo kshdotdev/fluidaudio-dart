@@ -6,6 +6,7 @@ import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// A diarized speaker segment with its raw speaker embedding.
@@ -98,7 +99,11 @@ class FluidDiarizationResult {
 
 /// Offline speaker diarization (VBx pipeline, CoreML).
 class FluidDiarizer {
-  FluidDiarizer._(this._hostApi, this._instanceId, this._events);
+  FluidDiarizer._(this._hostApi, this._instanceId, this._events) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.DiarizerHostApi _hostApi;
   final int _instanceId;
@@ -157,6 +162,7 @@ class FluidDiarizer {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 

@@ -109,7 +109,7 @@ final class VadHostApiImpl: VadHostApi {
   }
 
   func createStream(
-    instanceId: Int64, minSpeechDuration: Double?, minSilenceDuration: Double?,
+    instanceId: Int64, minSilenceDuration: Double?,
     completion: @escaping (Result<Int64, Error>) -> Void
   ) {
     guard let instance = registry.get(instanceId, as: VadInstance.self) else {
@@ -117,9 +117,6 @@ final class VadHostApiImpl: VadHostApi {
       return
     }
     var config = VadSegmentationConfig.default
-    if let minSpeechDuration {
-      config.minSpeechDuration = minSpeechDuration
-    }
     if let minSilenceDuration {
       config.minSilenceDuration = minSilenceDuration
     }

@@ -2,6 +2,18 @@
 
 ## 0.1.0 (unreleased)
 
+- Stabilization pass (adversarial multi-agent review, 14 confirmed findings
+  fixed): plugin teardown on engine detach/re-registration (stops live mic
+  capture, releases all native instances); lock-protected mic running flag;
+  iOS audio session deactivated on stop; `FluidModels.download` terminal
+  state now driven by the method-channel result (no more hangs on cache
+  hits); PocketTTS streaming frames tagged per-call with an ordered
+  end-of-stream sentinel (concurrent syntheses no longer interleave, no
+  close races); Dart `Finalizer` backstops on all instance classes;
+  `FluidVad.stream` no longer accepts the inert `minSpeechDuration`;
+  Swift RunnerTests (incl. SerialTaskQueue FIFO and SampleChunker tests)
+  and model-free channel e2e tests now run on the CI PR path.
+
 - M5: native microphone capture (`FluidMicrophone`) — AVAudioEngine tap,
   native resample to 16 kHz mono, direct fan-out to attached streaming-ASR /
   EOU / VAD sessions (audio never crosses the platform channel), optional

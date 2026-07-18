@@ -8,6 +8,7 @@ import 'ctc_vocabulary.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
+import 'native_finalizer.dart';
 import 'types.dart';
 
 /// Live sliding-window speech-to-text session.
@@ -19,7 +20,11 @@ import 'types.dart';
 ///
 /// For dual-track use (mic + system audio), create two sessions.
 class FluidStreamingAsr {
-  FluidStreamingAsr._(this._hostApi, this._instanceId, this._events);
+  FluidStreamingAsr._(this._hostApi, this._instanceId, this._events) {
+    final api = _hostApi;
+    final id = _instanceId;
+    nativeDisposeFinalizer.attach(this, finalizerDispose(() => api.dispose(id)), detach: this);
+  }
 
   final messages.StreamingAsrHostApi _hostApi;
   final int _instanceId;
@@ -107,6 +112,7 @@ class FluidStreamingAsr {
   Future<void> dispose() async {
     if (_disposed) return;
     _disposed = true;
+    nativeDisposeFinalizer.detach(this);
     await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
   }
 

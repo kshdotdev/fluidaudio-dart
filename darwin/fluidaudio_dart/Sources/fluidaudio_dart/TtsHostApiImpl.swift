@@ -43,14 +43,33 @@ final class TtsChunksHandler: TtsChunksStreamHandler {
     sink = nil
   }
 
-  func emit(instanceId: Int64, frame: PocketTtsSynthesizer.AudioFrame) {
-    let message = TtsChunkMessage(
-      instanceId: instanceId,
-      samples: AudioBridge.typedData(from: frame.samples),
-      frameIndex: Int64(frame.frameIndex),
-      chunkIndex: Int64(frame.chunkIndex),
-      chunkCount: Int64(frame.chunkCount)
-    )
+  func emit(streamToken: Int64, frame: PocketTtsSynthesizer.AudioFrame) {
+    send(
+      TtsChunkMessage(
+        streamToken: streamToken,
+        samples: AudioBridge.typedData(from: frame.samples),
+        frameIndex: Int64(frame.frameIndex),
+        chunkIndex: Int64(frame.chunkIndex),
+        chunkCount: Int64(frame.chunkCount),
+        isLast: false
+      ))
+  }
+
+  /// Ordered end-of-stream marker: emitted on the same channel after the last
+  /// frame, so Dart closes without racing the method-channel reply.
+  func emitEnd(streamToken: Int64) {
+    send(
+      TtsChunkMessage(
+        streamToken: streamToken,
+        samples: AudioBridge.typedData(from: []),
+        frameIndex: -1,
+        chunkIndex: -1,
+        chunkCount: -1,
+        isLast: true
+      ))
+  }
+
+  private func send(_ message: TtsChunkMessage) {
     if Thread.isMainThread {
       sink?.success(message)
     } else {
@@ -192,7 +211,7 @@ final class TtsHostApiImpl: TtsHostApi {
   }
 
   func pocketSynthesizeStreaming(
-    instanceId: Int64, text: String, voice: String?, temperature: Double,
+    instanceId: Int64, text: String, voice: String?, temperature: Double, streamToken: Int64,
     completion: @escaping (Result<Void, Error>) -> Void
   ) {
     guard let instance = registry.get(instanceId, as: PocketInstance.self) else {
@@ -205,8 +224,9 @@ final class TtsHostApiImpl: TtsHostApi {
         let stream = try await instance.manager.synthesizeStreaming(
           text: text, voice: voice, temperature: Float(temperature))
         for try await frame in stream {
-          chunks.emit(instanceId: instanceId, frame: frame)
+          chunks.emit(streamToken: streamToken, frame: frame)
         }
+        chunks.emitEnd(streamToken: streamToken)
         completion(.success(()))
       } catch {
         completion(.failure(ErrorMapping.map(error)))
