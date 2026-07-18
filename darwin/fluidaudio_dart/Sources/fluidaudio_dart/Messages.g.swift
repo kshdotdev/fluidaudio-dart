@@ -218,6 +218,12 @@ enum EouChunkSizeMessage: Int, CaseIterable {
   case ms1280 = 2
 }
 
+enum KokoroVariantMessage: Int, CaseIterable {
+  case english = 0
+  case mandarin = 1
+  case japanese = 2
+}
+
 /// System information reported by the native FluidAudio runtime.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -1139,6 +1145,111 @@ struct VocabularyTermMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct TtsResultMessage: Hashable, CustomStringConvertible {
+  /// Raw float32 PCM bytes (24 kHz mono).
+  var samples: FlutterStandardTypedData
+  var sampleRate: Int64
+  /// WAV-encoded 16-bit PCM, ready for playback or writing to disk.
+  var wav: FlutterStandardTypedData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TtsResultMessage? {
+    let samples = pigeonVar_list[0] as! FlutterStandardTypedData
+    let sampleRate = pigeonVar_list[1] as! Int64
+    let wav = pigeonVar_list[2] as! FlutterStandardTypedData
+
+    return TtsResultMessage(
+      samples: samples,
+      sampleRate: sampleRate,
+      wav: wav
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      samples,
+      sampleRate,
+      wav,
+    ]
+  }
+  static func == (lhs: TtsResultMessage, rhs: TtsResultMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.samples, rhs.samples) && MessagesPigeonInternal.deepEquals(lhs.sampleRate, rhs.sampleRate) && MessagesPigeonInternal.deepEquals(lhs.wav, rhs.wav)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("TtsResultMessage")
+    MessagesPigeonInternal.deepHash(value: samples, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: sampleRate, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: wav, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "TtsResultMessage(samples: \(String(describing: samples)), sampleRate: \(String(describing: sampleRate)), wav: \(String(describing: wav)))"
+  }
+}
+
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct TtsChunkMessage: Hashable, CustomStringConvertible {
+  var instanceId: Int64
+  /// Float32 PCM bytes.
+  var samples: FlutterStandardTypedData
+  var frameIndex: Int64
+  var chunkIndex: Int64
+  var chunkCount: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TtsChunkMessage? {
+    let instanceId = pigeonVar_list[0] as! Int64
+    let samples = pigeonVar_list[1] as! FlutterStandardTypedData
+    let frameIndex = pigeonVar_list[2] as! Int64
+    let chunkIndex = pigeonVar_list[3] as! Int64
+    let chunkCount = pigeonVar_list[4] as! Int64
+
+    return TtsChunkMessage(
+      instanceId: instanceId,
+      samples: samples,
+      frameIndex: frameIndex,
+      chunkIndex: chunkIndex,
+      chunkCount: chunkCount
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      instanceId,
+      samples,
+      frameIndex,
+      chunkIndex,
+      chunkCount,
+    ]
+  }
+  static func == (lhs: TtsChunkMessage, rhs: TtsChunkMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.samples, rhs.samples) && MessagesPigeonInternal.deepEquals(lhs.frameIndex, rhs.frameIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkIndex, rhs.chunkIndex) && MessagesPigeonInternal.deepEquals(lhs.chunkCount, rhs.chunkCount)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("TtsChunkMessage")
+    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: samples, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: frameIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: chunkIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: chunkCount, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "TtsChunkMessage(instanceId: \(String(describing: instanceId)), samples: \(String(describing: samples)), frameIndex: \(String(describing: frameIndex)), chunkIndex: \(String(describing: chunkIndex)), chunkCount: \(String(describing: chunkCount)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1173,39 +1284,49 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 134:
-      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return KokoroVariantMessage(rawValue: enumResultAsInt)
+      }
+      return nil
     case 135:
-      return DebugEventMessage.fromList(self.readValue() as! [Any?])
+      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
     case 136:
-      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
+      return DebugEventMessage.fromList(self.readValue() as! [Any?])
     case 137:
-      return AsrResultMessage.fromList(self.readValue() as! [Any?])
+      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
     case 138:
-      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
+      return AsrResultMessage.fromList(self.readValue() as! [Any?])
     case 139:
-      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
+      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
     case 140:
-      return VadResultMessage.fromList(self.readValue() as! [Any?])
+      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
     case 141:
-      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
+      return VadResultMessage.fromList(self.readValue() as! [Any?])
     case 142:
-      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
+      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
     case 143:
-      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
+      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
     case 144:
-      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
     case 145:
-      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 146:
-      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
+      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 147:
-      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
     case 148:
-      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
     case 149:
-      return EouEventMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
     case 150:
+      return EouEventMessage.fromList(self.readValue() as! [Any?])
+    case 151:
       return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
+    case 152:
+      return TtsResultMessage.fromList(self.readValue() as! [Any?])
+    case 153:
+      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1229,56 +1350,65 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? EouChunkSizeMessage {
       super.writeByte(133)
       super.writeValue(value.rawValue)
-    } else if let value = value as? SystemInfoMessage {
+    } else if let value = value as? KokoroVariantMessage {
       super.writeByte(134)
-      super.writeValue(value.toList())
-    } else if let value = value as? DebugEventMessage {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? SystemInfoMessage {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? TokenTimingMessage {
+    } else if let value = value as? DebugEventMessage {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? AsrResultMessage {
+    } else if let value = value as? TokenTimingMessage {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? TranscriptionUpdateMessage {
+    } else if let value = value as? AsrResultMessage {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? DownloadProgressMessage {
+    } else if let value = value as? TranscriptionUpdateMessage {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? VadResultMessage {
+    } else if let value = value as? DownloadProgressMessage {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? VadStreamEventMessage {
+    } else if let value = value as? VadResultMessage {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? StreamingConfigMessage {
+    } else if let value = value as? VadStreamEventMessage {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationSegmentMessage {
+    } else if let value = value as? StreamingConfigMessage {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakerEmbeddingMessage {
+    } else if let value = value as? DiarizationSegmentMessage {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? ChunkEmbeddingMessage {
+    } else if let value = value as? SpeakerEmbeddingMessage {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationTimingsMessage {
+    } else if let value = value as? ChunkEmbeddingMessage {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationResultMessage {
+    } else if let value = value as? DiarizationTimingsMessage {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationProgressMessage {
+    } else if let value = value as? DiarizationResultMessage {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? EouEventMessage {
+    } else if let value = value as? DiarizationProgressMessage {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? VocabularyTermMessage {
+    } else if let value = value as? EouEventMessage {
       super.writeByte(150)
+      super.writeValue(value.toList())
+    } else if let value = value as? VocabularyTermMessage {
+      super.writeByte(151)
+      super.writeValue(value.toList())
+    } else if let value = value as? TtsResultMessage {
+      super.writeByte(152)
+      super.writeValue(value.toList())
+    } else if let value = value as? TtsChunkMessage {
+      super.writeByte(153)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2285,6 +2415,289 @@ class ItnHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol TtsHostApi {
+  /// Downloads/loads Kokoro-ANE models (progress tagged with
+  /// [progressToken]); returns an instance id.
+  func kokoroCreate(variant: KokoroVariantMessage, defaultVoice: String?, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// Synthesizes to WAV bytes (24 kHz mono 16-bit).
+  func kokoroSynthesizeWav(instanceId: Int64, text: String, voice: String?, speed: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  func kokoroSynthesizeDetailed(instanceId: Int64, text: String, voice: String?, speed: Double, completion: @escaping (Result<TtsResultMessage, Error>) -> Void)
+  /// Downloads/loads PocketTTS models; returns an instance id.
+  func pocketCreate(defaultVoice: String?, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  func pocketSynthesizeWav(instanceId: Int64, text: String, voice: String?, temperature: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with
+  /// [instanceId]; the returned future completes when the stream ends.
+  func pocketSynthesizeStreaming(instanceId: Int64, text: String, voice: String?, temperature: Double, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
+  /// voice id usable with [pocketSynthesizeWithVoice].
+  func pocketCloneVoice(instanceId: Int64, float32Samples24k: FlutterStandardTypedData, completion: @escaping (Result<Int64, Error>) -> Void)
+  func pocketSynthesizeWithVoice(instanceId: Int64, voiceId: Int64, text: String, temperature: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class TtsHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `TtsHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: TtsHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Downloads/loads Kokoro-ANE models (progress tagged with
+    /// [progressToken]); returns an instance id.
+    let kokoroCreateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroCreate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      kokoroCreateChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let variantArg = args[0] as! KokoroVariantMessage
+        let defaultVoiceArg: String? = nilOrValue(args[1])
+        let progressTokenArg = args[2] as! Int64
+        api.kokoroCreate(variant: variantArg, defaultVoice: defaultVoiceArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      kokoroCreateChannel.setMessageHandler(nil)
+    }
+    /// Synthesizes to WAV bytes (24 kHz mono 16-bit).
+    let kokoroSynthesizeWavChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroSynthesizeWav\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      kokoroSynthesizeWavChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let textArg = args[1] as! String
+        let voiceArg: String? = nilOrValue(args[2])
+        let speedArg = args[3] as! Double
+        api.kokoroSynthesizeWav(instanceId: instanceIdArg, text: textArg, voice: voiceArg, speed: speedArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      kokoroSynthesizeWavChannel.setMessageHandler(nil)
+    }
+    let kokoroSynthesizeDetailedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroSynthesizeDetailed\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      kokoroSynthesizeDetailedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let textArg = args[1] as! String
+        let voiceArg: String? = nilOrValue(args[2])
+        let speedArg = args[3] as! Double
+        api.kokoroSynthesizeDetailed(instanceId: instanceIdArg, text: textArg, voice: voiceArg, speed: speedArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      kokoroSynthesizeDetailedChannel.setMessageHandler(nil)
+    }
+    /// Downloads/loads PocketTTS models; returns an instance id.
+    let pocketCreateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketCreate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pocketCreateChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let defaultVoiceArg: String? = nilOrValue(args[0])
+        let progressTokenArg = args[1] as! Int64
+        api.pocketCreate(defaultVoice: defaultVoiceArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pocketCreateChannel.setMessageHandler(nil)
+    }
+    let pocketSynthesizeWavChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeWav\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pocketSynthesizeWavChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let textArg = args[1] as! String
+        let voiceArg: String? = nilOrValue(args[2])
+        let temperatureArg = args[3] as! Double
+        api.pocketSynthesizeWav(instanceId: instanceIdArg, text: textArg, voice: voiceArg, temperature: temperatureArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pocketSynthesizeWavChannel.setMessageHandler(nil)
+    }
+    /// Streams synthesis frames on the `ttsChunks` channel tagged with
+    /// [instanceId]; the returned future completes when the stream ends.
+    let pocketSynthesizeStreamingChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeStreaming\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pocketSynthesizeStreamingChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let textArg = args[1] as! String
+        let voiceArg: String? = nilOrValue(args[2])
+        let temperatureArg = args[3] as! Double
+        api.pocketSynthesizeStreaming(instanceId: instanceIdArg, text: textArg, voice: voiceArg, temperature: temperatureArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pocketSynthesizeStreamingChannel.setMessageHandler(nil)
+    }
+    /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
+    /// voice id usable with [pocketSynthesizeWithVoice].
+    let pocketCloneVoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketCloneVoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pocketCloneVoiceChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32Samples24kArg = args[1] as! FlutterStandardTypedData
+        api.pocketCloneVoice(instanceId: instanceIdArg, float32Samples24k: float32Samples24kArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pocketCloneVoiceChannel.setMessageHandler(nil)
+    }
+    let pocketSynthesizeWithVoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeWithVoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      pocketSynthesizeWithVoiceChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let voiceIdArg = args[1] as! Int64
+        let textArg = args[2] as! String
+        let temperatureArg = args[3] as! Double
+        api.pocketSynthesizeWithVoice(instanceId: instanceIdArg, voiceId: voiceIdArg, text: textArg, temperature: temperatureArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      pocketSynthesizeWithVoiceChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol AudioHostApi {
+  /// Decodes and resamples any audio file to 16 kHz mono float32 bytes.
+  func resampleFile(path: String, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Resamples float32 samples from [fromRate] to 16 kHz mono.
+  func resample(float32Samples: FlutterStandardTypedData, fromRate: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+  /// Encodes float32 samples as a 16-bit PCM WAV file.
+  func encodeWav(float32Samples: FlutterStandardTypedData, sampleRate: Double, completion: @escaping (Result<FlutterStandardTypedData, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class AudioHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `AudioHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: AudioHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Decodes and resamples any audio file to 16 kHz mono float32 bytes.
+    let resampleFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.resampleFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resampleFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let pathArg = args[0] as! String
+        api.resampleFile(path: pathArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      resampleFileChannel.setMessageHandler(nil)
+    }
+    /// Resamples float32 samples from [fromRate] to 16 kHz mono.
+    let resampleChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.resample\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resampleChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let float32SamplesArg = args[0] as! FlutterStandardTypedData
+        let fromRateArg = args[1] as! Double
+        api.resample(float32Samples: float32SamplesArg, fromRate: fromRateArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      resampleChannel.setMessageHandler(nil)
+    }
+    /// Encodes float32 samples as a 16-bit PCM WAV file.
+    let encodeWavChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.encodeWav\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      encodeWavChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let float32SamplesArg = args[0] as! FlutterStandardTypedData
+        let sampleRateArg = args[1] as! Double
+        api.encodeWav(float32Samples: float32SamplesArg, sampleRate: sampleRateArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      encodeWavChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
   private let wrapper: PigeonEventChannelWrapper<ReturnType>
@@ -2414,6 +2827,20 @@ class EouEventsStreamHandler: PigeonEventChannelWrapper<EouEventMessage> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<EouEventMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class TtsChunksStreamHandler: PigeonEventChannelWrapper<TtsChunkMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: TtsChunksStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.ttsChunks"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<TtsChunkMessage>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

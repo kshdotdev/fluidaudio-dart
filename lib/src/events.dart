@@ -20,12 +20,14 @@ class FluidEventHub {
     Stream<messages.VadStreamEventMessage>? vadEvents,
     Stream<messages.DiarizationProgressMessage>? diarizationProgress,
     Stream<messages.EouEventMessage>? eouEvents,
+    Stream<messages.TtsChunkMessage>? ttsChunks,
   }) {
     _transcriptionUpdates = transcriptionUpdates;
     _downloadProgress = downloadProgress;
     _vadEvents = vadEvents;
     _diarizationProgress = diarizationProgress;
     _eouEvents = eouEvents;
+    _ttsChunks = ttsChunks;
   }
 
   static final FluidEventHub instance = FluidEventHub._();
@@ -35,6 +37,7 @@ class FluidEventHub {
   Stream<messages.VadStreamEventMessage>? _vadEvents;
   Stream<messages.DiarizationProgressMessage>? _diarizationProgress;
   Stream<messages.EouEventMessage>? _eouEvents;
+  Stream<messages.TtsChunkMessage>? _ttsChunks;
 
   int _nextToken = 1;
 
@@ -66,6 +69,14 @@ class FluidEventHub {
   /// Partial/utterance events for one EOU session.
   Stream<messages.EouEventMessage> eouEventsFor(int instanceId) {
     return eouEvents.where((event) => event.instanceId == instanceId);
+  }
+
+  Stream<messages.TtsChunkMessage> get ttsChunks =>
+      _ttsChunks ??= messages.ttsChunks().asBroadcastStream();
+
+  /// Synthesis frames for one TTS session.
+  Stream<messages.TtsChunkMessage> ttsChunksFor(int instanceId) {
+    return ttsChunks.where((chunk) => chunk.instanceId == instanceId);
   }
 
   /// Updates for one streaming-ASR session.

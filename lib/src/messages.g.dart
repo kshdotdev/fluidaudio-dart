@@ -131,6 +131,12 @@ enum EouChunkSizeMessage {
   ms1280,
 }
 
+enum KokoroVariantMessage {
+  english,
+  mandarin,
+  japanese,
+}
+
 /// System information reported by the native FluidAudio runtime.
 class SystemInfoMessage {
   SystemInfoMessage({
@@ -1215,6 +1221,130 @@ class VocabularyTermMessage {
   }
 }
 
+class TtsResultMessage {
+  TtsResultMessage({
+    required this.samples,
+    required this.sampleRate,
+    required this.wav,
+  });
+
+  /// Raw float32 PCM bytes (24 kHz mono).
+  Uint8List samples;
+
+  int sampleRate;
+
+  /// WAV-encoded 16-bit PCM, ready for playback or writing to disk.
+  Uint8List wav;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      samples,
+      sampleRate,
+      wav,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static TtsResultMessage decode(Object result) {
+    result as List<Object?>;
+    return TtsResultMessage(
+      samples: result[0]! as Uint8List,
+      sampleRate: result[1]! as int,
+      wav: result[2]! as Uint8List,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TtsResultMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(samples, other.samples) && _deepEquals(sampleRate, other.sampleRate) && _deepEquals(wav, other.wav);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TtsResultMessage(samples: $samples, sampleRate: $sampleRate, wav: $wav)';
+  }
+}
+
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+class TtsChunkMessage {
+  TtsChunkMessage({
+    required this.instanceId,
+    required this.samples,
+    required this.frameIndex,
+    required this.chunkIndex,
+    required this.chunkCount,
+  });
+
+  int instanceId;
+
+  /// Float32 PCM bytes.
+  Uint8List samples;
+
+  int frameIndex;
+
+  int chunkIndex;
+
+  int chunkCount;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      instanceId,
+      samples,
+      frameIndex,
+      chunkIndex,
+      chunkCount,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static TtsChunkMessage decode(Object result) {
+    result as List<Object?>;
+    return TtsChunkMessage(
+      instanceId: result[0]! as int,
+      samples: result[1]! as Uint8List,
+      frameIndex: result[2]! as int,
+      chunkIndex: result[3]! as int,
+      chunkCount: result[4]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TtsChunkMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(instanceId, other.instanceId) && _deepEquals(samples, other.samples) && _deepEquals(frameIndex, other.frameIndex) && _deepEquals(chunkIndex, other.chunkIndex) && _deepEquals(chunkCount, other.chunkCount);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TtsChunkMessage(instanceId: $instanceId, samples: $samples, frameIndex: $frameIndex, chunkIndex: $chunkIndex, chunkCount: $chunkCount)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1238,56 +1368,65 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is EouChunkSizeMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.index);
-    }    else if (value is SystemInfoMessage) {
+    }    else if (value is KokoroVariantMessage) {
       buffer.putUint8(134);
-      writeValue(buffer, value.encode());
-    }    else if (value is DebugEventMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is SystemInfoMessage) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is TokenTimingMessage) {
+    }    else if (value is DebugEventMessage) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is AsrResultMessage) {
+    }    else if (value is TokenTimingMessage) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is TranscriptionUpdateMessage) {
+    }    else if (value is AsrResultMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is DownloadProgressMessage) {
+    }    else if (value is TranscriptionUpdateMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is VadResultMessage) {
+    }    else if (value is DownloadProgressMessage) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is VadStreamEventMessage) {
+    }    else if (value is VadResultMessage) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is StreamingConfigMessage) {
+    }    else if (value is VadStreamEventMessage) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationSegmentMessage) {
+    }    else if (value is StreamingConfigMessage) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakerEmbeddingMessage) {
+    }    else if (value is DiarizationSegmentMessage) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is ChunkEmbeddingMessage) {
+    }    else if (value is SpeakerEmbeddingMessage) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationTimingsMessage) {
+    }    else if (value is ChunkEmbeddingMessage) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationResultMessage) {
+    }    else if (value is DiarizationTimingsMessage) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationProgressMessage) {
+    }    else if (value is DiarizationResultMessage) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is EouEventMessage) {
+    }    else if (value is DiarizationProgressMessage) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is VocabularyTermMessage) {
+    }    else if (value is EouEventMessage) {
       buffer.putUint8(150);
+      writeValue(buffer, value.encode());
+    }    else if (value is VocabularyTermMessage) {
+      buffer.putUint8(151);
+      writeValue(buffer, value.encode());
+    }    else if (value is TtsResultMessage) {
+      buffer.putUint8(152);
+      writeValue(buffer, value.encode());
+    }    else if (value is TtsChunkMessage) {
+      buffer.putUint8(153);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1313,39 +1452,46 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : EouChunkSizeMessage.values[value];
       case 134:
-        return SystemInfoMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : KokoroVariantMessage.values[value];
       case 135:
-        return DebugEventMessage.decode(readValue(buffer)!);
+        return SystemInfoMessage.decode(readValue(buffer)!);
       case 136:
-        return TokenTimingMessage.decode(readValue(buffer)!);
+        return DebugEventMessage.decode(readValue(buffer)!);
       case 137:
-        return AsrResultMessage.decode(readValue(buffer)!);
+        return TokenTimingMessage.decode(readValue(buffer)!);
       case 138:
-        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
+        return AsrResultMessage.decode(readValue(buffer)!);
       case 139:
-        return DownloadProgressMessage.decode(readValue(buffer)!);
+        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
       case 140:
-        return VadResultMessage.decode(readValue(buffer)!);
+        return DownloadProgressMessage.decode(readValue(buffer)!);
       case 141:
-        return VadStreamEventMessage.decode(readValue(buffer)!);
+        return VadResultMessage.decode(readValue(buffer)!);
       case 142:
-        return StreamingConfigMessage.decode(readValue(buffer)!);
+        return VadStreamEventMessage.decode(readValue(buffer)!);
       case 143:
-        return DiarizationSegmentMessage.decode(readValue(buffer)!);
+        return StreamingConfigMessage.decode(readValue(buffer)!);
       case 144:
-        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
+        return DiarizationSegmentMessage.decode(readValue(buffer)!);
       case 145:
-        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
+        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
       case 146:
-        return DiarizationTimingsMessage.decode(readValue(buffer)!);
+        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
       case 147:
-        return DiarizationResultMessage.decode(readValue(buffer)!);
+        return DiarizationTimingsMessage.decode(readValue(buffer)!);
       case 148:
-        return DiarizationProgressMessage.decode(readValue(buffer)!);
+        return DiarizationResultMessage.decode(readValue(buffer)!);
       case 149:
-        return EouEventMessage.decode(readValue(buffer)!);
+        return DiarizationProgressMessage.decode(readValue(buffer)!);
       case 150:
+        return EouEventMessage.decode(readValue(buffer)!);
+      case 151:
         return VocabularyTermMessage.decode(readValue(buffer)!);
+      case 152:
+        return TtsResultMessage.decode(readValue(buffer)!);
+      case 153:
+        return TtsChunkMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2314,6 +2460,271 @@ class ItnHostApi {
   }
 }
 
+class TtsHostApi {
+  /// Constructor for [TtsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  TtsHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Downloads/loads Kokoro-ANE models (progress tagged with
+  /// [progressToken]); returns an instance id.
+  Future<int> kokoroCreate(KokoroVariantMessage variant, String? defaultVoice, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroCreate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[variant, defaultVoice, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  /// Synthesizes to WAV bytes (24 kHz mono 16-bit).
+  Future<Uint8List> kokoroSynthesizeWav(int instanceId, String text, String? voice, double speed) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroSynthesizeWav$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, speed]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+
+  Future<TtsResultMessage> kokoroSynthesizeDetailed(int instanceId, String text, String? voice, double speed) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.kokoroSynthesizeDetailed$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, speed]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as TtsResultMessage;
+  }
+
+  /// Downloads/loads PocketTTS models; returns an instance id.
+  Future<int> pocketCreate(String? defaultVoice, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketCreate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[defaultVoice, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<Uint8List> pocketSynthesizeWav(int instanceId, String text, String? voice, double temperature) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeWav$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, temperature]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with
+  /// [instanceId]; the returned future completes when the stream ends.
+  Future<void> pocketSynthesizeStreaming(int instanceId, String text, String? voice, double temperature) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeStreaming$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, text, voice, temperature]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
+  /// voice id usable with [pocketSynthesizeWithVoice].
+  Future<int> pocketCloneVoice(int instanceId, Uint8List float32Samples24k) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketCloneVoice$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples24k]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<Uint8List> pocketSynthesizeWithVoice(int instanceId, int voiceId, String text, double temperature) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.pocketSynthesizeWithVoice$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, voiceId, text, temperature]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.TtsHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class AudioHostApi {
+  /// Constructor for [AudioHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  AudioHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Decodes and resamples any audio file to 16 kHz mono float32 bytes.
+  Future<Uint8List> resampleFile(String path) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.resampleFile$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[path]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+
+  /// Resamples float32 samples from [fromRate] to 16 kHz mono.
+  Future<Uint8List> resample(Uint8List float32Samples, double fromRate) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.resample$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[float32Samples, fromRate]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+
+  /// Encodes float32 samples as a 16-bit PCM WAV file.
+  Future<Uint8List> encodeWav(Uint8List float32Samples, double sampleRate) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AudioHostApi.encodeWav$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[float32Samples, sampleRate]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as Uint8List;
+  }
+}
+
 /// Returns a broadcast [Stream] of events from the `debugEvents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
@@ -2413,6 +2824,23 @@ Stream<EouEventMessage> eouEvents( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.eouEvents$instanceName', pigeonMethodCodec);
   return eouEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as EouEventMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `ttsChunks` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<TtsChunkMessage> ttsChunks( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel ttsChunksChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.ttsChunks$instanceName', pigeonMethodCodec);
+  return ttsChunksChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as TtsChunkMessage;
   });
 }
     

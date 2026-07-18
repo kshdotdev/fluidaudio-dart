@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- M4: text-to-speech — `FluidKokoroTts` (ANE, 24 kHz, voice ids like
+  `af_heart`) and `FluidPocketTts` (streaming 80 ms frames, voice cloning
+  from reference audio); `FluidAudioConverter` (file/sample resampling to
+  16 kHz mono, WAV encoding).
+
 - M3: custom-vocabulary boosting (`FluidCtcVocabulary` +
   `FluidStreamingAsr.configureVocabulary` — CTC-110M keyword spotter) and
   inverse text normalization (`FluidItn`, graceful no-op when the native

@@ -7,7 +7,15 @@ void main() {
     await tester.pumpWidget(const FluidAudioExampleApp());
     await tester.pump();
 
-    for (final tab in ['System', 'Models', 'Transcribe', 'Streaming', 'VAD', 'Diarize']) {
+    for (final tab in [
+      'System',
+      'Models',
+      'Transcribe',
+      'Streaming',
+      'VAD',
+      'Diarize',
+      'TTS',
+    ]) {
       expect(find.text(tab), findsOneWidget);
     }
     // System tab is selected initially; no platform channel in widget tests,

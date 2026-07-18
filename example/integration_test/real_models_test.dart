@@ -127,6 +127,46 @@ void main() {
       expect(directory, contains('FluidAudio'));
     });
 
+    testWidgets('audio converter resamples and encodes WAV', (tester) async {
+      final converter = FluidAudioConverter();
+      final path = await materializeWavAsset('assets/hello.wav');
+      final samples = await converter.resampleFile(path);
+      expect(samples.length, helloSamples.length,
+          reason: '16 kHz source must round-trip sample-exact in count');
+
+      final upsampled = await converter.resample(samples, fromRate: 8000);
+      expect(upsampled.length, greaterThan(samples.length));
+
+      final wav = await converter.encodeWav(samples, sampleRate: 16000);
+      expect(wav.length, greaterThan(44));
+      expect(String.fromCharCodes(wav.sublist(0, 4)), 'RIFF');
+    });
+
+    testWidgets('Kokoro TTS synthesizes audible audio', (tester) async {
+      final tts = await FluidKokoroTts.create();
+      addTearDown(tts.dispose);
+
+      final result = await tts.synthesizeDetailed('Hello from Flutter.');
+      expect(result.sampleRate, 24000);
+      expect(result.duration.inMilliseconds, greaterThan(300));
+      expect(result.samples.any((sample) => sample.abs() > 0.01), isTrue,
+          reason: 'output must not be silence');
+      expect(String.fromCharCodes(result.wav.sublist(0, 4)), 'RIFF');
+    }, timeout: const Timeout(Duration(minutes: 15)));
+
+    testWidgets('PocketTTS streams synthesis frames', (tester) async {
+      final tts = await FluidPocketTts.create();
+      addTearDown(tts.dispose);
+
+      final chunks = await tts.synthesizeStreaming('Streaming speech synthesis works.')
+          .toList()
+          .timeout(const Duration(minutes: 5));
+      expect(chunks, isNotEmpty);
+      expect(chunks.first.samples, hasLength(1920), reason: '80 ms frames at 24 kHz');
+      final allSamples = chunks.expand((chunk) => chunk.samples);
+      expect(allSamples.any((sample) => sample.abs() > 0.01), isTrue);
+    }, timeout: const Timeout(Duration(minutes: 15)));
+
     testWidgets('diarization finds two speakers with embeddings', (tester) async {
       final diarizer = await FluidDiarizer.create();
       addTearDown(diarizer.dispose);

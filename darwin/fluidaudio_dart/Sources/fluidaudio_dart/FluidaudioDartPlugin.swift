@@ -22,6 +22,7 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     let vadEvents = VadEventsHandler()
     let diarizationProgress = DiarizationProgressHandler()
     let eouEvents = EouEventsHandler()
+    let ttsChunks = TtsChunksHandler()
 
     DebugEventsStreamHandler.register(with: messenger, streamHandler: debugEvents)
     TranscriptionUpdatesStreamHandler.register(with: messenger, streamHandler: transcriptionUpdates)
@@ -29,6 +30,7 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     VadEventsStreamHandler.register(with: messenger, streamHandler: vadEvents)
     DiarizationProgressStreamHandler.register(with: messenger, streamHandler: diarizationProgress)
     EouEventsStreamHandler.register(with: messenger, streamHandler: eouEvents)
+    TtsChunksStreamHandler.register(with: messenger, streamHandler: ttsChunks)
 
     SystemHostApiSetup.setUp(
       binaryMessenger: messenger, api: SystemHostApiImpl(debugEvents: debugEvents))
@@ -56,5 +58,9 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
       binaryMessenger: messenger,
       api: CtcVocabularyHostApiImpl(registry: registry, downloadProgress: downloadProgress))
     ItnHostApiSetup.setUp(binaryMessenger: messenger, api: ItnHostApiImpl())
+    TtsHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: TtsHostApiImpl(registry: registry, downloadProgress: downloadProgress, chunks: ttsChunks))
+    AudioHostApiSetup.setUp(binaryMessenger: messenger, api: AudioHostApiImpl())
   }
 }

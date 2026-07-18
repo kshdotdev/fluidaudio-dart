@@ -4,6 +4,7 @@
 library;
 
 export 'src/asr.dart' show FluidAsr;
+export 'src/audio_converter.dart' show FluidAudioConverter;
 export 'src/ctc_vocabulary.dart' show FluidCtcVocabulary, FluidVocabularyTerm;
 export 'src/diarizer.dart'
     show
@@ -21,5 +22,13 @@ export 'src/itn.dart' show FluidItn;
 export 'src/models.dart' show FluidModels;
 export 'src/streaming_asr.dart' show FluidStreamingAsr;
 export 'src/system.dart' show FluidAudioSystem, FluidDebugEvent, FluidSystemInfo;
+export 'src/tts.dart'
+    show
+        FluidKokoroTts,
+        FluidPocketTts,
+        FluidPocketVoice,
+        FluidTtsChunk,
+        FluidTtsResult,
+        KokoroVariant;
 export 'src/types.dart';
 export 'src/vad.dart' show FluidVad, FluidVadStream;

@@ -511,6 +511,102 @@ abstract class ItnHostApi {
   void clearRules();
 }
 
+// ---------------------------------------------------------------------------
+// M4: text-to-speech (Kokoro ANE, PocketTTS), audio conversion
+// ---------------------------------------------------------------------------
+
+enum KokoroVariantMessage { english, mandarin, japanese }
+
+class TtsResultMessage {
+  TtsResultMessage({
+    required this.samples,
+    required this.sampleRate,
+    required this.wav,
+  });
+
+  /// Raw float32 PCM bytes (24 kHz mono).
+  Uint8List samples;
+  int sampleRate;
+
+  /// WAV-encoded 16-bit PCM, ready for playback or writing to disk.
+  Uint8List wav;
+}
+
+/// One streamed synthesis frame (80 ms at 24 kHz), tagged with the session.
+class TtsChunkMessage {
+  TtsChunkMessage({
+    required this.instanceId,
+    required this.samples,
+    required this.frameIndex,
+    required this.chunkIndex,
+    required this.chunkCount,
+  });
+
+  int instanceId;
+
+  /// Float32 PCM bytes.
+  Uint8List samples;
+  int frameIndex;
+  int chunkIndex;
+  int chunkCount;
+}
+
+@HostApi()
+abstract class TtsHostApi {
+  /// Downloads/loads Kokoro-ANE models (progress tagged with
+  /// [progressToken]); returns an instance id.
+  @async
+  int kokoroCreate(KokoroVariantMessage variant, String? defaultVoice, int progressToken);
+
+  /// Synthesizes to WAV bytes (24 kHz mono 16-bit).
+  @async
+  Uint8List kokoroSynthesizeWav(int instanceId, String text, String? voice, double speed);
+
+  @async
+  TtsResultMessage kokoroSynthesizeDetailed(
+      int instanceId, String text, String? voice, double speed);
+
+  /// Downloads/loads PocketTTS models; returns an instance id.
+  @async
+  int pocketCreate(String? defaultVoice, int progressToken);
+
+  @async
+  Uint8List pocketSynthesizeWav(int instanceId, String text, String? voice, double temperature);
+
+  /// Streams synthesis frames on the `ttsChunks` channel tagged with
+  /// [instanceId]; the returned future completes when the stream ends.
+  @async
+  void pocketSynthesizeStreaming(
+      int instanceId, String text, String? voice, double temperature);
+
+  /// Clones a voice from 1-10 s of 24 kHz mono float32 audio; returns a
+  /// voice id usable with [pocketSynthesizeWithVoice].
+  @async
+  int pocketCloneVoice(int instanceId, Uint8List float32Samples24k);
+
+  @async
+  Uint8List pocketSynthesizeWithVoice(
+      int instanceId, int voiceId, String text, double temperature);
+
+  @async
+  void dispose(int instanceId);
+}
+
+@HostApi()
+abstract class AudioHostApi {
+  /// Decodes and resamples any audio file to 16 kHz mono float32 bytes.
+  @async
+  Uint8List resampleFile(String path);
+
+  /// Resamples float32 samples from [fromRate] to 16 kHz mono.
+  @async
+  Uint8List resample(Uint8List float32Samples, double fromRate);
+
+  /// Encodes float32 samples as a 16-bit PCM WAV file.
+  @async
+  Uint8List encodeWav(Uint8List float32Samples, double sampleRate);
+}
+
 @EventChannelApi()
 abstract class FluidAudioEventChannelApi {
   DebugEventMessage debugEvents();
@@ -519,4 +615,5 @@ abstract class FluidAudioEventChannelApi {
   VadStreamEventMessage vadEvents();
   DiarizationProgressMessage diarizationProgress();
   EouEventMessage eouEvents();
+  TtsChunkMessage ttsChunks();
 }
