@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
 
+import 'audio_bytes.dart';
 import 'messages.g.dart' as messages;
 
 /// System information reported by the native FluidAudio runtime.
@@ -73,24 +74,4 @@ class FluidAudioSystem {
 
   /// Asks the native side to emit [count] events on [debugEvents].
   Future<void> debugEmitEvents(int count) => _hostApi.debugEmitEvents(count);
-}
-
-/// Views [samples] as little-endian float32 bytes without copying elements.
-@visibleForTesting
-Uint8List floatsToBytes(Float32List samples) {
-  return samples.buffer.asUint8List(samples.offsetInBytes, samples.lengthInBytes);
-}
-
-/// Views [bytes] as float32 samples without copying elements.
-@visibleForTesting
-Float32List bytesToFloats(Uint8List bytes) {
-  if (bytes.offsetInBytes % Float32List.bytesPerElement == 0) {
-    return bytes.buffer.asFloat32List(
-      bytes.offsetInBytes,
-      bytes.lengthInBytes ~/ Float32List.bytesPerElement,
-    );
-  }
-  // Unaligned view is not allowed; fall back to a copy.
-  final aligned = Uint8List.fromList(bytes);
-  return aligned.buffer.asFloat32List(0, aligned.lengthInBytes ~/ Float32List.bytesPerElement);
 }

@@ -16,6 +16,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  path_provider: ^2.1.5
 
   fluidaudio_dart:
     # When depending on this package from a real application you should use:
@@ -52,6 +53,11 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/hello.wav
+    - assets/silence.wav
+    - assets/speaker2.wav
 
   # To add assets to your application, add an assets section, like this:
   # assets:

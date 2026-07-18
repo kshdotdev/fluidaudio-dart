@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 
 #if os(iOS)
@@ -24,5 +25,30 @@ enum AudioBridge {
   static func typedData(from floats: [Float]) -> FlutterStandardTypedData {
     let data = floats.withUnsafeBytes { Data($0) }
     return FlutterStandardTypedData(bytes: data)
+  }
+
+  /// Wraps 16 kHz mono float32 samples in an `AVAudioPCMBuffer` for the
+  /// FluidAudio streaming APIs. Buffers never cross the channel boundary
+  /// (AVAudioPCMBuffer is non-Sendable); they are built here, natively.
+  static func pcmBuffer(from samples: [Float]) -> AVAudioPCMBuffer? {
+    guard
+      let format = AVAudioFormat(
+        commonFormat: .pcmFormatFloat32,
+        sampleRate: 16000,
+        channels: 1,
+        interleaved: false
+      ),
+      let buffer = AVAudioPCMBuffer(
+        pcmFormat: format, frameCapacity: AVAudioFrameCount(max(samples.count, 1)))
+    else {
+      return nil
+    }
+    buffer.frameLength = AVAudioFrameCount(samples.count)
+    if let channelData = buffer.floatChannelData, !samples.isEmpty {
+      samples.withUnsafeBufferPointer { source in
+        channelData[0].update(from: source.baseAddress!, count: samples.count)
+      }
+    }
+    return buffer
   }
 }

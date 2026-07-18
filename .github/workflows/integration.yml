@@ -27,8 +27,13 @@ jobs:
         with:
           path: ~/Library/Application Support/FluidAudio/Models
           key: fluidaudio-models-${{ runner.os }}-v1
-      - name: Run integration tests
-        run: flutter test integration_test -d macos
+      # Run test files one at a time: launching the desktop app twice
+      # back-to-back can flake with "Error waiting for a debug connection".
+      - name: Run M0 channel integration tests
+        run: flutter test integration_test/plugin_integration_test.dart -d macos
+        working-directory: example
+      - name: Run real-model integration tests
+        run: flutter test integration_test/real_models_test.dart -d macos
         working-directory: example
         env:
           FLUIDAUDIO_RUN_MODELS: '1'

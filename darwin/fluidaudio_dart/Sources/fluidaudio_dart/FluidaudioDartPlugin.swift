@@ -14,9 +14,31 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
       let messenger = registrar.messenger
     #endif
 
+    let registry = InstanceRegistry()
+
     let debugEvents = DebugEventsHandler()
+    let transcriptionUpdates = TranscriptionUpdatesHandler()
+    let downloadProgress = DownloadProgressHandler()
+    let vadEvents = VadEventsHandler()
+
     DebugEventsStreamHandler.register(with: messenger, streamHandler: debugEvents)
+    TranscriptionUpdatesStreamHandler.register(with: messenger, streamHandler: transcriptionUpdates)
+    DownloadProgressStreamHandler.register(with: messenger, streamHandler: downloadProgress)
+    VadEventsStreamHandler.register(with: messenger, streamHandler: vadEvents)
+
     SystemHostApiSetup.setUp(
       binaryMessenger: messenger, api: SystemHostApiImpl(debugEvents: debugEvents))
+    ModelsHostApiSetup.setUp(
+      binaryMessenger: messenger, api: ModelsHostApiImpl(downloadProgress: downloadProgress))
+    AsrHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: AsrHostApiImpl(registry: registry, downloadProgress: downloadProgress))
+    StreamingAsrHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: StreamingAsrHostApiImpl(
+        registry: registry, downloadProgress: downloadProgress, updates: transcriptionUpdates))
+    VadHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: VadHostApiImpl(registry: registry, downloadProgress: downloadProgress, events: vadEvents))
   }
 }

@@ -97,6 +97,33 @@ int _deepHash(Object? value) {
 }
 
 
+/// Parakeet model generations exposed to Dart.
+enum AsrVersionMessage {
+  v2,
+  v3,
+}
+
+/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
+enum ModelKindMessage {
+  vad,
+  parakeetV2,
+  parakeetV3,
+}
+
+enum DownloadPhaseMessage {
+  listing,
+  downloading,
+  compiling,
+  completed,
+  failed,
+}
+
+/// Audio source for a streaming session.
+enum AudioSourceMessage {
+  microphone,
+  system,
+}
+
 /// System information reported by the native FluidAudio runtime.
 class SystemInfoMessage {
   SystemInfoMessage({
@@ -221,6 +248,475 @@ class DebugEventMessage {
   }
 }
 
+class TokenTimingMessage {
+  TokenTimingMessage({
+    required this.token,
+    required this.tokenId,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.confidence,
+  });
+
+  String token;
+
+  int tokenId;
+
+  double startSeconds;
+
+  double endSeconds;
+
+  double confidence;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      token,
+      tokenId,
+      startSeconds,
+      endSeconds,
+      confidence,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static TokenTimingMessage decode(Object result) {
+    result as List<Object?>;
+    return TokenTimingMessage(
+      token: result[0]! as String,
+      tokenId: result[1]! as int,
+      startSeconds: result[2]! as double,
+      endSeconds: result[3]! as double,
+      confidence: result[4]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TokenTimingMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(token, other.token) && _deepEquals(tokenId, other.tokenId) && _deepEquals(startSeconds, other.startSeconds) && _deepEquals(endSeconds, other.endSeconds) && _deepEquals(confidence, other.confidence);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TokenTimingMessage(token: $token, tokenId: $tokenId, startSeconds: $startSeconds, endSeconds: $endSeconds, confidence: $confidence)';
+  }
+}
+
+class AsrResultMessage {
+  AsrResultMessage({
+    required this.text,
+    required this.confidence,
+    required this.durationSeconds,
+    required this.processingSeconds,
+    this.tokenTimings,
+  });
+
+  String text;
+
+  double confidence;
+
+  double durationSeconds;
+
+  double processingSeconds;
+
+  List<TokenTimingMessage>? tokenTimings;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      text,
+      confidence,
+      durationSeconds,
+      processingSeconds,
+      tokenTimings,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static AsrResultMessage decode(Object result) {
+    result as List<Object?>;
+    return AsrResultMessage(
+      text: result[0]! as String,
+      confidence: result[1]! as double,
+      durationSeconds: result[2]! as double,
+      processingSeconds: result[3]! as double,
+      tokenTimings: (result[4] as List<Object?>?)?.cast<TokenTimingMessage>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AsrResultMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(text, other.text) && _deepEquals(confidence, other.confidence) && _deepEquals(durationSeconds, other.durationSeconds) && _deepEquals(processingSeconds, other.processingSeconds) && _deepEquals(tokenTimings, other.tokenTimings);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AsrResultMessage(text: $text, confidence: $confidence, durationSeconds: $durationSeconds, processingSeconds: $processingSeconds, tokenTimings: $tokenTimings)';
+  }
+}
+
+/// Streaming transcription update, tagged with the emitting session.
+class TranscriptionUpdateMessage {
+  TranscriptionUpdateMessage({
+    required this.instanceId,
+    required this.text,
+    required this.isConfirmed,
+    required this.confidence,
+    this.tokenTimings,
+  });
+
+  int instanceId;
+
+  String text;
+
+  bool isConfirmed;
+
+  double confidence;
+
+  List<TokenTimingMessage>? tokenTimings;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      instanceId,
+      text,
+      isConfirmed,
+      confidence,
+      tokenTimings,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static TranscriptionUpdateMessage decode(Object result) {
+    result as List<Object?>;
+    return TranscriptionUpdateMessage(
+      instanceId: result[0]! as int,
+      text: result[1]! as String,
+      isConfirmed: result[2]! as bool,
+      confidence: result[3]! as double,
+      tokenTimings: (result[4] as List<Object?>?)?.cast<TokenTimingMessage>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! TranscriptionUpdateMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(instanceId, other.instanceId) && _deepEquals(text, other.text) && _deepEquals(isConfirmed, other.isConfirmed) && _deepEquals(confidence, other.confidence) && _deepEquals(tokenTimings, other.tokenTimings);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'TranscriptionUpdateMessage(instanceId: $instanceId, text: $text, isConfirmed: $isConfirmed, confidence: $confidence, tokenTimings: $tokenTimings)';
+  }
+}
+
+/// Model download/compile progress, tagged with a caller-chosen token.
+class DownloadProgressMessage {
+  DownloadProgressMessage({
+    required this.progressToken,
+    required this.fraction,
+    required this.phase,
+    this.completedFiles,
+    this.totalFiles,
+    this.modelName,
+    this.errorMessage,
+  });
+
+  int progressToken;
+
+  double fraction;
+
+  DownloadPhaseMessage phase;
+
+  int? completedFiles;
+
+  int? totalFiles;
+
+  String? modelName;
+
+  String? errorMessage;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      progressToken,
+      fraction,
+      phase,
+      completedFiles,
+      totalFiles,
+      modelName,
+      errorMessage,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DownloadProgressMessage decode(Object result) {
+    result as List<Object?>;
+    return DownloadProgressMessage(
+      progressToken: result[0]! as int,
+      fraction: result[1]! as double,
+      phase: result[2]! as DownloadPhaseMessage,
+      completedFiles: result[3] as int?,
+      totalFiles: result[4] as int?,
+      modelName: result[5] as String?,
+      errorMessage: result[6] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DownloadProgressMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(progressToken, other.progressToken) && _deepEquals(fraction, other.fraction) && _deepEquals(phase, other.phase) && _deepEquals(completedFiles, other.completedFiles) && _deepEquals(totalFiles, other.totalFiles) && _deepEquals(modelName, other.modelName) && _deepEquals(errorMessage, other.errorMessage);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DownloadProgressMessage(progressToken: $progressToken, fraction: $fraction, phase: $phase, completedFiles: $completedFiles, totalFiles: $totalFiles, modelName: $modelName, errorMessage: $errorMessage)';
+  }
+}
+
+class VadResultMessage {
+  VadResultMessage({
+    required this.probability,
+    required this.isVoiceActive,
+    required this.processingSeconds,
+  });
+
+  double probability;
+
+  bool isVoiceActive;
+
+  double processingSeconds;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      probability,
+      isVoiceActive,
+      processingSeconds,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VadResultMessage decode(Object result) {
+    result as List<Object?>;
+    return VadResultMessage(
+      probability: result[0]! as double,
+      isVoiceActive: result[1]! as bool,
+      processingSeconds: result[2]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VadResultMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(probability, other.probability) && _deepEquals(isVoiceActive, other.isVoiceActive) && _deepEquals(processingSeconds, other.processingSeconds);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VadResultMessage(probability: $probability, isVoiceActive: $isVoiceActive, processingSeconds: $processingSeconds)';
+  }
+}
+
+/// Per-chunk VAD stream tick. [isSpeechStart]/[isSpeechEnd] are both false for
+/// plain probability ticks with no segmentation event.
+class VadStreamEventMessage {
+  VadStreamEventMessage({
+    required this.instanceId,
+    required this.probability,
+    required this.isSpeechStart,
+    required this.isSpeechEnd,
+    this.sampleIndex,
+    this.timeSeconds,
+  });
+
+  int instanceId;
+
+  double probability;
+
+  bool isSpeechStart;
+
+  bool isSpeechEnd;
+
+  int? sampleIndex;
+
+  double? timeSeconds;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      instanceId,
+      probability,
+      isSpeechStart,
+      isSpeechEnd,
+      sampleIndex,
+      timeSeconds,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VadStreamEventMessage decode(Object result) {
+    result as List<Object?>;
+    return VadStreamEventMessage(
+      instanceId: result[0]! as int,
+      probability: result[1]! as double,
+      isSpeechStart: result[2]! as bool,
+      isSpeechEnd: result[3]! as bool,
+      sampleIndex: result[4] as int?,
+      timeSeconds: result[5] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VadStreamEventMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(instanceId, other.instanceId) && _deepEquals(probability, other.probability) && _deepEquals(isSpeechStart, other.isSpeechStart) && _deepEquals(isSpeechEnd, other.isSpeechEnd) && _deepEquals(sampleIndex, other.sampleIndex) && _deepEquals(timeSeconds, other.timeSeconds);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VadStreamEventMessage(instanceId: $instanceId, probability: $probability, isSpeechStart: $isSpeechStart, isSpeechEnd: $isSpeechEnd, sampleIndex: $sampleIndex, timeSeconds: $timeSeconds)';
+  }
+}
+
+class StreamingConfigMessage {
+  StreamingConfigMessage({
+    this.chunkSeconds,
+    this.hypothesisChunkSeconds,
+    this.leftContextSeconds,
+    this.rightContextSeconds,
+    this.minContextForConfirmation,
+    this.confirmationThreshold,
+  });
+
+  double? chunkSeconds;
+
+  double? hypothesisChunkSeconds;
+
+  double? leftContextSeconds;
+
+  double? rightContextSeconds;
+
+  double? minContextForConfirmation;
+
+  double? confirmationThreshold;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      chunkSeconds,
+      hypothesisChunkSeconds,
+      leftContextSeconds,
+      rightContextSeconds,
+      minContextForConfirmation,
+      confirmationThreshold,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static StreamingConfigMessage decode(Object result) {
+    result as List<Object?>;
+    return StreamingConfigMessage(
+      chunkSeconds: result[0] as double?,
+      hypothesisChunkSeconds: result[1] as double?,
+      leftContextSeconds: result[2] as double?,
+      rightContextSeconds: result[3] as double?,
+      minContextForConfirmation: result[4] as double?,
+      confirmationThreshold: result[5] as double?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! StreamingConfigMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(chunkSeconds, other.chunkSeconds) && _deepEquals(hypothesisChunkSeconds, other.hypothesisChunkSeconds) && _deepEquals(leftContextSeconds, other.leftContextSeconds) && _deepEquals(rightContextSeconds, other.rightContextSeconds) && _deepEquals(minContextForConfirmation, other.minContextForConfirmation) && _deepEquals(confirmationThreshold, other.confirmationThreshold);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'StreamingConfigMessage(chunkSeconds: $chunkSeconds, hypothesisChunkSeconds: $hypothesisChunkSeconds, leftContextSeconds: $leftContextSeconds, rightContextSeconds: $rightContextSeconds, minContextForConfirmation: $minContextForConfirmation, confirmationThreshold: $confirmationThreshold)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -229,11 +725,44 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is int) {
       buffer.putUint8(4);
       buffer.putInt64(value);
-    }    else if (value is SystemInfoMessage) {
+    }    else if (value is AsrVersionMessage) {
       buffer.putUint8(129);
+      writeValue(buffer, value.index);
+    }    else if (value is ModelKindMessage) {
+      buffer.putUint8(130);
+      writeValue(buffer, value.index);
+    }    else if (value is DownloadPhaseMessage) {
+      buffer.putUint8(131);
+      writeValue(buffer, value.index);
+    }    else if (value is AudioSourceMessage) {
+      buffer.putUint8(132);
+      writeValue(buffer, value.index);
+    }    else if (value is SystemInfoMessage) {
+      buffer.putUint8(133);
       writeValue(buffer, value.encode());
     }    else if (value is DebugEventMessage) {
-      buffer.putUint8(130);
+      buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    }    else if (value is TokenTimingMessage) {
+      buffer.putUint8(135);
+      writeValue(buffer, value.encode());
+    }    else if (value is AsrResultMessage) {
+      buffer.putUint8(136);
+      writeValue(buffer, value.encode());
+    }    else if (value is TranscriptionUpdateMessage) {
+      buffer.putUint8(137);
+      writeValue(buffer, value.encode());
+    }    else if (value is DownloadProgressMessage) {
+      buffer.putUint8(138);
+      writeValue(buffer, value.encode());
+    }    else if (value is VadResultMessage) {
+      buffer.putUint8(139);
+      writeValue(buffer, value.encode());
+    }    else if (value is VadStreamEventMessage) {
+      buffer.putUint8(140);
+      writeValue(buffer, value.encode());
+    }    else if (value is StreamingConfigMessage) {
+      buffer.putUint8(141);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -244,9 +773,35 @@ class _PigeonCodec extends StandardMessageCodec {
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
       case 129:
-        return SystemInfoMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : AsrVersionMessage.values[value];
       case 130:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : ModelKindMessage.values[value];
+      case 131:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : DownloadPhaseMessage.values[value];
+      case 132:
+        final value = readValue(buffer) as int?;
+        return value == null ? null : AudioSourceMessage.values[value];
+      case 133:
+        return SystemInfoMessage.decode(readValue(buffer)!);
+      case 134:
         return DebugEventMessage.decode(readValue(buffer)!);
+      case 135:
+        return TokenTimingMessage.decode(readValue(buffer)!);
+      case 136:
+        return AsrResultMessage.decode(readValue(buffer)!);
+      case 137:
+        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
+      case 138:
+        return DownloadProgressMessage.decode(readValue(buffer)!);
+      case 139:
+        return VadResultMessage.decode(readValue(buffer)!);
+      case 140:
+        return VadStreamEventMessage.decode(readValue(buffer)!);
+      case 141:
+        return StreamingConfigMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -327,6 +882,486 @@ class SystemHostApi {
   }
 }
 
+class ModelsHostApi {
+  /// Constructor for [ModelsHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  ModelsHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  Future<bool> isDownloaded(ModelKindMessage kind) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.isDownloaded$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Downloads [kind], reporting progress on the `downloadProgress` stream
+  /// tagged with [progressToken]. Completes when the download finishes.
+  Future<void> download(ModelKindMessage kind, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.download$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> remove(ModelKindMessage kind) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.remove$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<String> cacheDirectory(ModelKindMessage kind) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.cacheDirectory$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[kind]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Process-global offline switch; must be set before any load/download.
+  Future<void> setOfflineMode(bool enabled) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.setOfflineMode$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[enabled]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class AsrHostApi {
+  /// Constructor for [AsrHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  AsrHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Downloads (if needed) and loads Parakeet models; returns an instance id.
+  /// Progress is reported on `downloadProgress` tagged with [progressToken].
+  Future<int> load(AsrVersionMessage version, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.load$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[version, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
+  /// state per call). [languageCode] is an ISO 639-1 code such as "en".
+  Future<AsrResultMessage> transcribeSamples(int instanceId, Uint8List float32Samples, String? languageCode) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples, languageCode]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as AsrResultMessage;
+  }
+
+  Future<AsrResultMessage> transcribeFile(int instanceId, String path, String? languageCode) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeFile$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, path, languageCode]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as AsrResultMessage;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class StreamingAsrHostApi {
+  /// Constructor for [StreamingAsrHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  StreamingAsrHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Creates a sliding-window streaming session (models load/download first;
+  /// progress tagged with [progressToken]). Updates arrive on the
+  /// `transcriptionUpdates` stream tagged with the returned instance id.
+  Future<int> create(AsrVersionMessage version, StreamingConfigMessage? config, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.create$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[version, config, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<void> start(int instanceId, AudioSourceMessage source) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.start$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, source]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Feeds 16 kHz mono float32 samples. Buffers are processed strictly in
+  /// call order (serialized natively).
+  Future<void> feed(int instanceId, Uint8List float32Samples) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.feed$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Flushes pending audio and returns the final transcript.
+  Future<String> finish(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.finish$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> reset(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.reset$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class VadHostApi {
+  /// Constructor for [VadHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  VadHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Loads the Silero VAD (auto-downloads; progress tagged with
+  /// [progressToken]); returns an instance id.
+  Future<int> create(double threshold, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.create$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[threshold, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<List<VadResultMessage>> processSamples(int instanceId, Uint8List float32Samples) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.processSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<VadResultMessage>();
+  }
+
+  /// Creates a streaming state on an existing VAD instance; events arrive on
+  /// the `vadEvents` stream tagged with the returned stream id.
+  Future<int> createStream(int instanceId, double? minSpeechDuration, double? minSilenceDuration) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.createStream$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, minSpeechDuration, minSilenceDuration]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  /// Feeds one 4096-sample chunk; processed strictly in call order.
+  Future<void> feedStream(int streamId, Uint8List float32Chunk) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.feedStream$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[streamId, float32Chunk]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> resetStream(int streamId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.resetStream$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[streamId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> disposeStream(int streamId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.disposeStream$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[streamId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.VadHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
 /// Returns a broadcast [Stream] of events from the `debugEvents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
@@ -341,6 +1376,57 @@ Stream<DebugEventMessage> debugEvents( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.debugEvents$instanceName', pigeonMethodCodec);
   return debugEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as DebugEventMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `transcriptionUpdates` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<TranscriptionUpdateMessage> transcriptionUpdates( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel transcriptionUpdatesChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.transcriptionUpdates$instanceName', pigeonMethodCodec);
+  return transcriptionUpdatesChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as TranscriptionUpdateMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `downloadProgress` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<DownloadProgressMessage> downloadProgress( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel downloadProgressChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.downloadProgress$instanceName', pigeonMethodCodec);
+  return downloadProgressChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as DownloadProgressMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `vadEvents` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<VadStreamEventMessage> vadEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel vadEventsChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.vadEvents$instanceName', pigeonMethodCodec);
+  return vadEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as VadStreamEventMessage;
   });
 }
     

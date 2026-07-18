@@ -184,6 +184,33 @@ private func nilOrValue<T>(_ value: Any?) -> T? {
 }
 
 
+/// Parakeet model generations exposed to Dart.
+enum AsrVersionMessage: Int, CaseIterable {
+  case v2 = 0
+  case v3 = 1
+}
+
+/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
+enum ModelKindMessage: Int, CaseIterable {
+  case vad = 0
+  case parakeetV2 = 1
+  case parakeetV3 = 2
+}
+
+enum DownloadPhaseMessage: Int, CaseIterable {
+  case listing = 0
+  case downloading = 1
+  case compiling = 2
+  case completed = 3
+  case failed = 4
+}
+
+/// Audio source for a streaming session.
+enum AudioSourceMessage: Int, CaseIterable {
+  case microphone = 0
+  case system = 1
+}
+
 /// System information reported by the native FluidAudio runtime.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -290,13 +317,453 @@ struct DebugEventMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct TokenTimingMessage: Hashable, CustomStringConvertible {
+  var token: String
+  var tokenId: Int64
+  var startSeconds: Double
+  var endSeconds: Double
+  var confidence: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TokenTimingMessage? {
+    let token = pigeonVar_list[0] as! String
+    let tokenId = pigeonVar_list[1] as! Int64
+    let startSeconds = pigeonVar_list[2] as! Double
+    let endSeconds = pigeonVar_list[3] as! Double
+    let confidence = pigeonVar_list[4] as! Double
+
+    return TokenTimingMessage(
+      token: token,
+      tokenId: tokenId,
+      startSeconds: startSeconds,
+      endSeconds: endSeconds,
+      confidence: confidence
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      token,
+      tokenId,
+      startSeconds,
+      endSeconds,
+      confidence,
+    ]
+  }
+  static func == (lhs: TokenTimingMessage, rhs: TokenTimingMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.token, rhs.token) && MessagesPigeonInternal.deepEquals(lhs.tokenId, rhs.tokenId) && MessagesPigeonInternal.deepEquals(lhs.startSeconds, rhs.startSeconds) && MessagesPigeonInternal.deepEquals(lhs.endSeconds, rhs.endSeconds) && MessagesPigeonInternal.deepEquals(lhs.confidence, rhs.confidence)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("TokenTimingMessage")
+    MessagesPigeonInternal.deepHash(value: token, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: tokenId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: startSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: endSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: confidence, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "TokenTimingMessage(token: \(String(describing: token)), tokenId: \(String(describing: tokenId)), startSeconds: \(String(describing: startSeconds)), endSeconds: \(String(describing: endSeconds)), confidence: \(String(describing: confidence)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct AsrResultMessage: Hashable, CustomStringConvertible {
+  var text: String
+  var confidence: Double
+  var durationSeconds: Double
+  var processingSeconds: Double
+  var tokenTimings: [TokenTimingMessage]? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AsrResultMessage? {
+    let text = pigeonVar_list[0] as! String
+    let confidence = pigeonVar_list[1] as! Double
+    let durationSeconds = pigeonVar_list[2] as! Double
+    let processingSeconds = pigeonVar_list[3] as! Double
+    let tokenTimings: [TokenTimingMessage]? = nilOrValue(pigeonVar_list[4])
+
+    return AsrResultMessage(
+      text: text,
+      confidence: confidence,
+      durationSeconds: durationSeconds,
+      processingSeconds: processingSeconds,
+      tokenTimings: tokenTimings
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      text,
+      confidence,
+      durationSeconds,
+      processingSeconds,
+      tokenTimings,
+    ]
+  }
+  static func == (lhs: AsrResultMessage, rhs: AsrResultMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.text, rhs.text) && MessagesPigeonInternal.deepEquals(lhs.confidence, rhs.confidence) && MessagesPigeonInternal.deepEquals(lhs.durationSeconds, rhs.durationSeconds) && MessagesPigeonInternal.deepEquals(lhs.processingSeconds, rhs.processingSeconds) && MessagesPigeonInternal.deepEquals(lhs.tokenTimings, rhs.tokenTimings)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AsrResultMessage")
+    MessagesPigeonInternal.deepHash(value: text, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: confidence, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: durationSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: processingSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: tokenTimings, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AsrResultMessage(text: \(String(describing: text)), confidence: \(String(describing: confidence)), durationSeconds: \(String(describing: durationSeconds)), processingSeconds: \(String(describing: processingSeconds)), tokenTimings: \(String(describing: tokenTimings)))"
+  }
+}
+
+/// Streaming transcription update, tagged with the emitting session.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct TranscriptionUpdateMessage: Hashable, CustomStringConvertible {
+  var instanceId: Int64
+  var text: String
+  var isConfirmed: Bool
+  var confidence: Double
+  var tokenTimings: [TokenTimingMessage]? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> TranscriptionUpdateMessage? {
+    let instanceId = pigeonVar_list[0] as! Int64
+    let text = pigeonVar_list[1] as! String
+    let isConfirmed = pigeonVar_list[2] as! Bool
+    let confidence = pigeonVar_list[3] as! Double
+    let tokenTimings: [TokenTimingMessage]? = nilOrValue(pigeonVar_list[4])
+
+    return TranscriptionUpdateMessage(
+      instanceId: instanceId,
+      text: text,
+      isConfirmed: isConfirmed,
+      confidence: confidence,
+      tokenTimings: tokenTimings
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      instanceId,
+      text,
+      isConfirmed,
+      confidence,
+      tokenTimings,
+    ]
+  }
+  static func == (lhs: TranscriptionUpdateMessage, rhs: TranscriptionUpdateMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.text, rhs.text) && MessagesPigeonInternal.deepEquals(lhs.isConfirmed, rhs.isConfirmed) && MessagesPigeonInternal.deepEquals(lhs.confidence, rhs.confidence) && MessagesPigeonInternal.deepEquals(lhs.tokenTimings, rhs.tokenTimings)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("TranscriptionUpdateMessage")
+    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: text, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isConfirmed, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: confidence, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: tokenTimings, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "TranscriptionUpdateMessage(instanceId: \(String(describing: instanceId)), text: \(String(describing: text)), isConfirmed: \(String(describing: isConfirmed)), confidence: \(String(describing: confidence)), tokenTimings: \(String(describing: tokenTimings)))"
+  }
+}
+
+/// Model download/compile progress, tagged with a caller-chosen token.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DownloadProgressMessage: Hashable, CustomStringConvertible {
+  var progressToken: Int64
+  var fraction: Double
+  var phase: DownloadPhaseMessage
+  var completedFiles: Int64? = nil
+  var totalFiles: Int64? = nil
+  var modelName: String? = nil
+  var errorMessage: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DownloadProgressMessage? {
+    let progressToken = pigeonVar_list[0] as! Int64
+    let fraction = pigeonVar_list[1] as! Double
+    let phase = pigeonVar_list[2] as! DownloadPhaseMessage
+    let completedFiles: Int64? = nilOrValue(pigeonVar_list[3])
+    let totalFiles: Int64? = nilOrValue(pigeonVar_list[4])
+    let modelName: String? = nilOrValue(pigeonVar_list[5])
+    let errorMessage: String? = nilOrValue(pigeonVar_list[6])
+
+    return DownloadProgressMessage(
+      progressToken: progressToken,
+      fraction: fraction,
+      phase: phase,
+      completedFiles: completedFiles,
+      totalFiles: totalFiles,
+      modelName: modelName,
+      errorMessage: errorMessage
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      progressToken,
+      fraction,
+      phase,
+      completedFiles,
+      totalFiles,
+      modelName,
+      errorMessage,
+    ]
+  }
+  static func == (lhs: DownloadProgressMessage, rhs: DownloadProgressMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.progressToken, rhs.progressToken) && MessagesPigeonInternal.deepEquals(lhs.fraction, rhs.fraction) && MessagesPigeonInternal.deepEquals(lhs.phase, rhs.phase) && MessagesPigeonInternal.deepEquals(lhs.completedFiles, rhs.completedFiles) && MessagesPigeonInternal.deepEquals(lhs.totalFiles, rhs.totalFiles) && MessagesPigeonInternal.deepEquals(lhs.modelName, rhs.modelName) && MessagesPigeonInternal.deepEquals(lhs.errorMessage, rhs.errorMessage)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DownloadProgressMessage")
+    MessagesPigeonInternal.deepHash(value: progressToken, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: fraction, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: phase, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: completedFiles, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: totalFiles, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: modelName, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: errorMessage, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DownloadProgressMessage(progressToken: \(String(describing: progressToken)), fraction: \(String(describing: fraction)), phase: \(String(describing: phase)), completedFiles: \(String(describing: completedFiles)), totalFiles: \(String(describing: totalFiles)), modelName: \(String(describing: modelName)), errorMessage: \(String(describing: errorMessage)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct VadResultMessage: Hashable, CustomStringConvertible {
+  var probability: Double
+  var isVoiceActive: Bool
+  var processingSeconds: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VadResultMessage? {
+    let probability = pigeonVar_list[0] as! Double
+    let isVoiceActive = pigeonVar_list[1] as! Bool
+    let processingSeconds = pigeonVar_list[2] as! Double
+
+    return VadResultMessage(
+      probability: probability,
+      isVoiceActive: isVoiceActive,
+      processingSeconds: processingSeconds
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      probability,
+      isVoiceActive,
+      processingSeconds,
+    ]
+  }
+  static func == (lhs: VadResultMessage, rhs: VadResultMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.probability, rhs.probability) && MessagesPigeonInternal.deepEquals(lhs.isVoiceActive, rhs.isVoiceActive) && MessagesPigeonInternal.deepEquals(lhs.processingSeconds, rhs.processingSeconds)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("VadResultMessage")
+    MessagesPigeonInternal.deepHash(value: probability, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isVoiceActive, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: processingSeconds, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "VadResultMessage(probability: \(String(describing: probability)), isVoiceActive: \(String(describing: isVoiceActive)), processingSeconds: \(String(describing: processingSeconds)))"
+  }
+}
+
+/// Per-chunk VAD stream tick. [isSpeechStart]/[isSpeechEnd] are both false for
+/// plain probability ticks with no segmentation event.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VadStreamEventMessage: Hashable, CustomStringConvertible {
+  var instanceId: Int64
+  var probability: Double
+  var isSpeechStart: Bool
+  var isSpeechEnd: Bool
+  var sampleIndex: Int64? = nil
+  var timeSeconds: Double? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VadStreamEventMessage? {
+    let instanceId = pigeonVar_list[0] as! Int64
+    let probability = pigeonVar_list[1] as! Double
+    let isSpeechStart = pigeonVar_list[2] as! Bool
+    let isSpeechEnd = pigeonVar_list[3] as! Bool
+    let sampleIndex: Int64? = nilOrValue(pigeonVar_list[4])
+    let timeSeconds: Double? = nilOrValue(pigeonVar_list[5])
+
+    return VadStreamEventMessage(
+      instanceId: instanceId,
+      probability: probability,
+      isSpeechStart: isSpeechStart,
+      isSpeechEnd: isSpeechEnd,
+      sampleIndex: sampleIndex,
+      timeSeconds: timeSeconds
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      instanceId,
+      probability,
+      isSpeechStart,
+      isSpeechEnd,
+      sampleIndex,
+      timeSeconds,
+    ]
+  }
+  static func == (lhs: VadStreamEventMessage, rhs: VadStreamEventMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.probability, rhs.probability) && MessagesPigeonInternal.deepEquals(lhs.isSpeechStart, rhs.isSpeechStart) && MessagesPigeonInternal.deepEquals(lhs.isSpeechEnd, rhs.isSpeechEnd) && MessagesPigeonInternal.deepEquals(lhs.sampleIndex, rhs.sampleIndex) && MessagesPigeonInternal.deepEquals(lhs.timeSeconds, rhs.timeSeconds)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("VadStreamEventMessage")
+    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: probability, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isSpeechStart, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isSpeechEnd, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: sampleIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: timeSeconds, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "VadStreamEventMessage(instanceId: \(String(describing: instanceId)), probability: \(String(describing: probability)), isSpeechStart: \(String(describing: isSpeechStart)), isSpeechEnd: \(String(describing: isSpeechEnd)), sampleIndex: \(String(describing: sampleIndex)), timeSeconds: \(String(describing: timeSeconds)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct StreamingConfigMessage: Hashable, CustomStringConvertible {
+  var chunkSeconds: Double? = nil
+  var hypothesisChunkSeconds: Double? = nil
+  var leftContextSeconds: Double? = nil
+  var rightContextSeconds: Double? = nil
+  var minContextForConfirmation: Double? = nil
+  var confirmationThreshold: Double? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> StreamingConfigMessage? {
+    let chunkSeconds: Double? = nilOrValue(pigeonVar_list[0])
+    let hypothesisChunkSeconds: Double? = nilOrValue(pigeonVar_list[1])
+    let leftContextSeconds: Double? = nilOrValue(pigeonVar_list[2])
+    let rightContextSeconds: Double? = nilOrValue(pigeonVar_list[3])
+    let minContextForConfirmation: Double? = nilOrValue(pigeonVar_list[4])
+    let confirmationThreshold: Double? = nilOrValue(pigeonVar_list[5])
+
+    return StreamingConfigMessage(
+      chunkSeconds: chunkSeconds,
+      hypothesisChunkSeconds: hypothesisChunkSeconds,
+      leftContextSeconds: leftContextSeconds,
+      rightContextSeconds: rightContextSeconds,
+      minContextForConfirmation: minContextForConfirmation,
+      confirmationThreshold: confirmationThreshold
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      chunkSeconds,
+      hypothesisChunkSeconds,
+      leftContextSeconds,
+      rightContextSeconds,
+      minContextForConfirmation,
+      confirmationThreshold,
+    ]
+  }
+  static func == (lhs: StreamingConfigMessage, rhs: StreamingConfigMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.chunkSeconds, rhs.chunkSeconds) && MessagesPigeonInternal.deepEquals(lhs.hypothesisChunkSeconds, rhs.hypothesisChunkSeconds) && MessagesPigeonInternal.deepEquals(lhs.leftContextSeconds, rhs.leftContextSeconds) && MessagesPigeonInternal.deepEquals(lhs.rightContextSeconds, rhs.rightContextSeconds) && MessagesPigeonInternal.deepEquals(lhs.minContextForConfirmation, rhs.minContextForConfirmation) && MessagesPigeonInternal.deepEquals(lhs.confirmationThreshold, rhs.confirmationThreshold)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("StreamingConfigMessage")
+    MessagesPigeonInternal.deepHash(value: chunkSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: hypothesisChunkSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: leftContextSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rightContextSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: minContextForConfirmation, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: confirmationThreshold, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "StreamingConfigMessage(chunkSeconds: \(String(describing: chunkSeconds)), hypothesisChunkSeconds: \(String(describing: hypothesisChunkSeconds)), leftContextSeconds: \(String(describing: leftContextSeconds)), rightContextSeconds: \(String(describing: rightContextSeconds)), minContextForConfirmation: \(String(describing: minContextForConfirmation)), confirmationThreshold: \(String(describing: confirmationThreshold)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
     case 129:
-      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return AsrVersionMessage(rawValue: enumResultAsInt)
+      }
+      return nil
     case 130:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return ModelKindMessage(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 131:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return DownloadPhaseMessage(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 132:
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return AudioSourceMessage(rawValue: enumResultAsInt)
+      }
+      return nil
+    case 133:
+      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
+    case 134:
       return DebugEventMessage.fromList(self.readValue() as! [Any?])
+    case 135:
+      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
+    case 136:
+      return AsrResultMessage.fromList(self.readValue() as! [Any?])
+    case 137:
+      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
+    case 138:
+      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
+    case 139:
+      return VadResultMessage.fromList(self.readValue() as! [Any?])
+    case 140:
+      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
+    case 141:
+      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -305,11 +772,44 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
 
 private class MessagesPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
-    if let value = value as? SystemInfoMessage {
+    if let value = value as? AsrVersionMessage {
       super.writeByte(129)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? ModelKindMessage {
+      super.writeByte(130)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? DownloadPhaseMessage {
+      super.writeByte(131)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? AudioSourceMessage {
+      super.writeByte(132)
+      super.writeValue(value.rawValue)
+    } else if let value = value as? SystemInfoMessage {
+      super.writeByte(133)
       super.writeValue(value.toList())
     } else if let value = value as? DebugEventMessage {
-      super.writeByte(130)
+      super.writeByte(134)
+      super.writeValue(value.toList())
+    } else if let value = value as? TokenTimingMessage {
+      super.writeByte(135)
+      super.writeValue(value.toList())
+    } else if let value = value as? AsrResultMessage {
+      super.writeByte(136)
+      super.writeValue(value.toList())
+    } else if let value = value as? TranscriptionUpdateMessage {
+      super.writeByte(137)
+      super.writeValue(value.toList())
+    } else if let value = value as? DownloadProgressMessage {
+      super.writeByte(138)
+      super.writeValue(value.toList())
+    } else if let value = value as? VadResultMessage {
+      super.writeByte(139)
+      super.writeValue(value.toList())
+    } else if let value = value as? VadStreamEventMessage {
+      super.writeByte(140)
+      super.writeValue(value.toList())
+    } else if let value = value as? StreamingConfigMessage {
+      super.writeByte(141)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -402,6 +902,501 @@ class SystemHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol ModelsHostApi {
+  func isDownloaded(kind: ModelKindMessage, completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Downloads [kind], reporting progress on the `downloadProgress` stream
+  /// tagged with [progressToken]. Completes when the download finishes.
+  func download(kind: ModelKindMessage, progressToken: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func remove(kind: ModelKindMessage, completion: @escaping (Result<Void, Error>) -> Void)
+  func cacheDirectory(kind: ModelKindMessage, completion: @escaping (Result<String, Error>) -> Void)
+  /// Process-global offline switch; must be set before any load/download.
+  func setOfflineMode(enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class ModelsHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `ModelsHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: ModelsHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    let isDownloadedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.isDownloaded\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isDownloadedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kindArg = args[0] as! ModelKindMessage
+        api.isDownloaded(kind: kindArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isDownloadedChannel.setMessageHandler(nil)
+    }
+    /// Downloads [kind], reporting progress on the `downloadProgress` stream
+    /// tagged with [progressToken]. Completes when the download finishes.
+    let downloadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.download\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      downloadChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kindArg = args[0] as! ModelKindMessage
+        let progressTokenArg = args[1] as! Int64
+        api.download(kind: kindArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      downloadChannel.setMessageHandler(nil)
+    }
+    let removeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.remove\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      removeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kindArg = args[0] as! ModelKindMessage
+        api.remove(kind: kindArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      removeChannel.setMessageHandler(nil)
+    }
+    let cacheDirectoryChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.cacheDirectory\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      cacheDirectoryChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let kindArg = args[0] as! ModelKindMessage
+        api.cacheDirectory(kind: kindArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      cacheDirectoryChannel.setMessageHandler(nil)
+    }
+    /// Process-global offline switch; must be set before any load/download.
+    let setOfflineModeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.setOfflineMode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setOfflineModeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let enabledArg = args[0] as! Bool
+        api.setOfflineMode(enabled: enabledArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setOfflineModeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol AsrHostApi {
+  /// Downloads (if needed) and loads Parakeet models; returns an instance id.
+  /// Progress is reported on `downloadProgress` tagged with [progressToken].
+  func load(version: AsrVersionMessage, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
+  /// state per call). [languageCode] is an ISO 639-1 code such as "en".
+  func transcribeSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
+  func transcribeFile(instanceId: Int64, path: String, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class AsrHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `AsrHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: AsrHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Downloads (if needed) and loads Parakeet models; returns an instance id.
+    /// Progress is reported on `downloadProgress` tagged with [progressToken].
+    let loadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.load\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      loadChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let versionArg = args[0] as! AsrVersionMessage
+        let progressTokenArg = args[1] as! Int64
+        api.load(version: versionArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      loadChannel.setMessageHandler(nil)
+    }
+    /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
+    /// state per call). [languageCode] is an ISO 639-1 code such as "en".
+    let transcribeSamplesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeSamples\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      transcribeSamplesChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32SamplesArg = args[1] as! FlutterStandardTypedData
+        let languageCodeArg: String? = nilOrValue(args[2])
+        api.transcribeSamples(instanceId: instanceIdArg, float32Samples: float32SamplesArg, languageCode: languageCodeArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      transcribeSamplesChannel.setMessageHandler(nil)
+    }
+    let transcribeFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      transcribeFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let pathArg = args[1] as! String
+        let languageCodeArg: String? = nilOrValue(args[2])
+        api.transcribeFile(instanceId: instanceIdArg, path: pathArg, languageCode: languageCodeArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      transcribeFileChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol StreamingAsrHostApi {
+  /// Creates a sliding-window streaming session (models load/download first;
+  /// progress tagged with [progressToken]). Updates arrive on the
+  /// `transcriptionUpdates` stream tagged with the returned instance id.
+  func create(version: AsrVersionMessage, config: StreamingConfigMessage?, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  func start(instanceId: Int64, source: AudioSourceMessage, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Feeds 16 kHz mono float32 samples. Buffers are processed strictly in
+  /// call order (serialized natively).
+  func feed(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Flushes pending audio and returns the final transcript.
+  func finish(instanceId: Int64, completion: @escaping (Result<String, Error>) -> Void)
+  func reset(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class StreamingAsrHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `StreamingAsrHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: StreamingAsrHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Creates a sliding-window streaming session (models load/download first;
+    /// progress tagged with [progressToken]). Updates arrive on the
+    /// `transcriptionUpdates` stream tagged with the returned instance id.
+    let createChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.create\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      createChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let versionArg = args[0] as! AsrVersionMessage
+        let configArg: StreamingConfigMessage? = nilOrValue(args[1])
+        let progressTokenArg = args[2] as! Int64
+        api.create(version: versionArg, config: configArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      createChannel.setMessageHandler(nil)
+    }
+    let startChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.start\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let sourceArg = args[1] as! AudioSourceMessage
+        api.start(instanceId: instanceIdArg, source: sourceArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startChannel.setMessageHandler(nil)
+    }
+    /// Feeds 16 kHz mono float32 samples. Buffers are processed strictly in
+    /// call order (serialized natively).
+    let feedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.feed\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      feedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32SamplesArg = args[1] as! FlutterStandardTypedData
+        api.feed(instanceId: instanceIdArg, float32Samples: float32SamplesArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      feedChannel.setMessageHandler(nil)
+    }
+    /// Flushes pending audio and returns the final transcript.
+    let finishChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.finish\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      finishChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.finish(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      finishChannel.setMessageHandler(nil)
+    }
+    let resetChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.reset\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resetChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.reset(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      resetChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol VadHostApi {
+  /// Loads the Silero VAD (auto-downloads; progress tagged with
+  /// [progressToken]); returns an instance id.
+  func create(threshold: Double, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  func processSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<[VadResultMessage], Error>) -> Void)
+  /// Creates a streaming state on an existing VAD instance; events arrive on
+  /// the `vadEvents` stream tagged with the returned stream id.
+  func createStream(instanceId: Int64, minSpeechDuration: Double?, minSilenceDuration: Double?, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// Feeds one 4096-sample chunk; processed strictly in call order.
+  func feedStream(streamId: Int64, float32Chunk: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
+  func resetStream(streamId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func disposeStream(streamId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class VadHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `VadHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: VadHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Loads the Silero VAD (auto-downloads; progress tagged with
+    /// [progressToken]); returns an instance id.
+    let createChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.create\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      createChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let thresholdArg = args[0] as! Double
+        let progressTokenArg = args[1] as! Int64
+        api.create(threshold: thresholdArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      createChannel.setMessageHandler(nil)
+    }
+    let processSamplesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.processSamples\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      processSamplesChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32SamplesArg = args[1] as! FlutterStandardTypedData
+        api.processSamples(instanceId: instanceIdArg, float32Samples: float32SamplesArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      processSamplesChannel.setMessageHandler(nil)
+    }
+    /// Creates a streaming state on an existing VAD instance; events arrive on
+    /// the `vadEvents` stream tagged with the returned stream id.
+    let createStreamChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.createStream\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      createStreamChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let minSpeechDurationArg: Double? = nilOrValue(args[1])
+        let minSilenceDurationArg: Double? = nilOrValue(args[2])
+        api.createStream(instanceId: instanceIdArg, minSpeechDuration: minSpeechDurationArg, minSilenceDuration: minSilenceDurationArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      createStreamChannel.setMessageHandler(nil)
+    }
+    /// Feeds one 4096-sample chunk; processed strictly in call order.
+    let feedStreamChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.feedStream\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      feedStreamChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let streamIdArg = args[0] as! Int64
+        let float32ChunkArg = args[1] as! FlutterStandardTypedData
+        api.feedStream(streamId: streamIdArg, float32Chunk: float32ChunkArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      feedStreamChannel.setMessageHandler(nil)
+    }
+    let resetStreamChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.resetStream\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resetStreamChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let streamIdArg = args[0] as! Int64
+        api.resetStream(streamId: streamIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      resetStreamChannel.setMessageHandler(nil)
+    }
+    let disposeStreamChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.disposeStream\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeStreamChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let streamIdArg = args[0] as! Int64
+        api.disposeStream(streamId: streamIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeStreamChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.VadHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
   private let wrapper: PigeonEventChannelWrapper<ReturnType>
@@ -461,6 +1456,48 @@ class DebugEventsStreamHandler: PigeonEventChannelWrapper<DebugEventMessage> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<DebugEventMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class TranscriptionUpdatesStreamHandler: PigeonEventChannelWrapper<TranscriptionUpdateMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: TranscriptionUpdatesStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.transcriptionUpdates"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<TranscriptionUpdateMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class DownloadProgressStreamHandler: PigeonEventChannelWrapper<DownloadProgressMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: DownloadProgressStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.downloadProgress"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<DownloadProgressMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class VadEventsStreamHandler: PigeonEventChannelWrapper<VadStreamEventMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: VadEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.vadEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<VadStreamEventMessage>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

@@ -4,9 +4,26 @@ Flutter bindings for [FluidAudio](https://github.com/FluidInference/FluidAudio) 
 on-device speech-to-text, voice activity detection, speaker diarization and
 text-to-speech on Apple platforms, powered by CoreML and the Apple Neural Engine.
 
-> **Status: early development (M0 walking skeleton).** The plugin scaffold,
-> pigeon channel bridge, and FluidAudio SPM integration are in place and
-> verified end-to-end. The speech APIs land next (see the roadmap below).
+> **Status: early development (M1).** Batch + streaming speech-to-text, VAD,
+> and model management are implemented and verified end-to-end against real
+> models. Diarization, EOU, Qwen3, CTC vocabulary, ITN and TTS land next
+> (see the roadmap below).
+
+```dart
+import 'package:fluidaudio_dart/fluidaudio_dart.dart';
+
+final asr = await FluidAsr.load(); // downloads Parakeet v3 on first use
+final result = await asr.transcribe(samples16kHzMonoFloat32);
+print(result.text);
+
+// Live streaming with partial/confirmed updates:
+final session = await FluidStreamingAsr.create();
+session.updates.listen((u) => print('${u.isConfirmed ? "✓" : "…"} ${u.text}'));
+await session.start();
+// feed 16 kHz mono Float32List chunks as they arrive:
+await session.feed(chunk);
+final transcript = await session.finish();
+```
 
 ## Requirements
 
@@ -32,7 +49,7 @@ See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
 
 - [x] **M0** — plugin scaffold, shared darwin source (SPM + podspec), pigeon
       round-trip, event channel, typed-data audio convention, CI
-- [ ] **M1** — batch ASR (Parakeet v2/v3, token timings), model management with
+- [x] **M1** — batch ASR (Parakeet v2/v3, token timings), model management with
       download progress, sliding-window streaming ASR, VAD (batch + streaming)
 - [ ] **M2** — offline speaker diarization (with embeddings), end-of-utterance
       turn detection
@@ -56,7 +73,8 @@ pod 'FluidAudio', :git => 'https://github.com/FluidInference/FluidAudio.git', :t
 flutter pub get
 dart run pigeon --input pigeons/fluidaudio.dart   # regenerate channel code
 flutter analyze && flutter test                   # fast loop
-cd example && flutter test integration_test -d macos   # e2e against the real plugin
+cd example && flutter test integration_test/plugin_integration_test.dart -d macos  # channel e2e
+cd example && FLUIDAUDIO_RUN_MODELS=1 flutter test integration_test/real_models_test.dart -d macos  # real inference
 cd example && flutter run -d macos                # demo app
 ```
 
