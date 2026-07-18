@@ -155,6 +155,40 @@ void main() {
       expect(progressEvents, isNotEmpty);
     }, timeout: const Timeout(Duration(minutes: 5)));
 
+    testWidgets('ITN normalizes or no-ops gracefully', (tester) async {
+      final itn = FluidItn();
+      final available = await itn.isNativeAvailable();
+      final normalized = await itn.normalize('twenty five dollars');
+      if (available) {
+        expect(normalized.toLowerCase(), isNot(contains('twenty')));
+      } else {
+        expect(normalized, 'twenty five dollars',
+            reason: 'without the native lib, ITN must be a no-op');
+      }
+    });
+
+    testWidgets('custom vocabulary loads and configures a streaming session',
+        (tester) async {
+      final vocabulary = await FluidCtcVocabulary.load(
+        terms: const [FluidVocabularyTerm('FluidAudio'), FluidVocabularyTerm('Parakeet')],
+      );
+      addTearDown(vocabulary.dispose);
+
+      final session = await FluidStreamingAsr.create();
+      addTearDown(session.dispose);
+      await session.configureVocabulary(vocabulary);
+      await session.start();
+
+      const chunk = 1600;
+      for (var offset = 0; offset < helloSamples.length; offset += chunk) {
+        final end = (offset + chunk).clamp(0, helloSamples.length);
+        await session.feed(Float32List.sublistView(helloSamples, offset, end));
+      }
+      final transcript = await session.finish();
+      expect(transcript.toLowerCase(), contains('hello'),
+          reason: 'boosting must not break normal transcription');
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
     testWidgets('EOU session emits utterances and finish returns transcript',
         (tester) async {
       final eou = await FluidEou.create();

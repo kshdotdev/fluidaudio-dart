@@ -1160,6 +1160,61 @@ class EouEventMessage {
   }
 }
 
+class VocabularyTermMessage {
+  VocabularyTermMessage({
+    required this.text,
+    this.weight,
+    this.aliases,
+  });
+
+  String text;
+
+  double? weight;
+
+  List<String>? aliases;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      text,
+      weight,
+      aliases,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VocabularyTermMessage decode(Object result) {
+    result as List<Object?>;
+    return VocabularyTermMessage(
+      text: result[0]! as String,
+      weight: result[1] as double?,
+      aliases: (result[2] as List<Object?>?)?.cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VocabularyTermMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(text, other.text) && _deepEquals(weight, other.weight) && _deepEquals(aliases, other.aliases);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VocabularyTermMessage(text: $text, weight: $weight, aliases: $aliases)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1231,6 +1286,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is EouEventMessage) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
+    }    else if (value is VocabularyTermMessage) {
+      buffer.putUint8(150);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1286,6 +1344,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return DiarizationProgressMessage.decode(readValue(buffer)!);
       case 149:
         return EouEventMessage.decode(readValue(buffer)!);
+      case 150:
+        return VocabularyTermMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1631,6 +1691,26 @@ class StreamingAsrHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Enables custom-vocabulary boosting with a vocabulary created via
+  /// [CtcVocabularyHostApi.load]. Must be called before [start].
+  Future<void> configureVocabulary(int instanceId, int vocabularyId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.configureVocabulary$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, vocabularyId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -2039,6 +2119,190 @@ class EouHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class CtcVocabularyHostApi {
+  /// Constructor for [CtcVocabularyHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  CtcVocabularyHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Downloads/loads the CTC-110M spotter models, tokenizes [terms], and
+  /// returns a vocabulary instance id for use with
+  /// [StreamingAsrHostApi.configureVocabulary].
+  Future<int> load(List<VocabularyTermMessage> terms, double minSimilarity, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.load$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[terms, minSimilarity, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class ItnHostApi {
+  /// Constructor for [ItnHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  ItnHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Whether the native NeMo normalization library is loadable; when false
+  /// all normalization calls are no-ops returning the input unchanged.
+  Future<bool> isNativeAvailable() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.isNativeAvailable$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Normalizes a single spoken-form expression to written form.
+  Future<String> normalize(String text) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalize$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[text]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  /// Sliding-window normalization across a full sentence.
+  Future<String> normalizeSentence(String text, int? maxSpanTokens) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalizeSentence$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[text, maxSpanTokens]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> addRule(String spoken, String written) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.addRule$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[spoken, written]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<bool> removeRule(String spoken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.removeRule$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[spoken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  Future<void> clearRules() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.clearRules$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

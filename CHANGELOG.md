@@ -2,6 +2,12 @@
 
 ## 0.1.0 (unreleased)
 
+- M3: custom-vocabulary boosting (`FluidCtcVocabulary` +
+  `FluidStreamingAsr.configureVocabulary` — CTC-110M keyword spotter) and
+  inverse text normalization (`FluidItn`, graceful no-op when the native
+  NeMo library is unavailable). Qwen3 was dropped from scope: removed
+  upstream in FluidAudio 0.15.x.
+
 - M2: offline speaker diarization (`FluidDiarizer` — segments with raw
   speaker embeddings, speaker database, chunk embeddings, pipeline timings,
   per-chunk progress stream) and end-of-utterance turn detection (`FluidEou`

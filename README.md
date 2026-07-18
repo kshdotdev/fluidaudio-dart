@@ -4,10 +4,11 @@ Flutter bindings for [FluidAudio](https://github.com/FluidInference/FluidAudio) 
 on-device speech-to-text, voice activity detection, speaker diarization and
 text-to-speech on Apple platforms, powered by CoreML and the Apple Neural Engine.
 
-> **Status: early development (M2).** Batch + streaming speech-to-text, VAD,
-> speaker diarization (with embeddings), end-of-utterance turn detection, and
-> model management are implemented and verified end-to-end against real
-> models. Qwen3, CTC vocabulary, ITN and TTS land next (see the roadmap below).
+> **Status: early development (M3).** Batch + streaming speech-to-text, VAD,
+> speaker diarization (with embeddings), end-of-utterance turn detection,
+> custom-vocabulary boosting, inverse text normalization, and model management
+> are implemented and verified end-to-end against real models. TTS lands next
+> (see the roadmap below).
 
 ```dart
 import 'package:fluidaudio_dart/fluidaudio_dart.dart';
@@ -53,8 +54,9 @@ See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
       download progress, sliding-window streaming ASR, VAD (batch + streaming)
 - [x] **M2** — offline speaker diarization (with embeddings), end-of-utterance
       turn detection
-- [ ] **M3** — Qwen3 multilingual ASR (batch + streaming), CTC custom
-      vocabulary, inverse text normalization
+- [x] **M3** — CTC custom vocabulary boosting, inverse text normalization.
+      (Qwen3 multilingual ASR was planned here but the upstream FluidAudio
+      0.15.x removed it; it will be bound if it returns upstream.)
 - [ ] **M4** — TTS (Kokoro, PocketTTS incl. streaming + voice cloning), audio
       conversion utilities
 

@@ -52,5 +52,9 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     EouHostApiSetup.setUp(
       binaryMessenger: messenger,
       api: EouHostApiImpl(registry: registry, downloadProgress: downloadProgress, events: eouEvents))
+    CtcVocabularyHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: CtcVocabularyHostApiImpl(registry: registry, downloadProgress: downloadProgress))
+    ItnHostApiSetup.setUp(binaryMessenger: messenger, api: ItnHostApiImpl())
   }
 }

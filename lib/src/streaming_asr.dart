@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import 'audio_bytes.dart';
+import 'ctc_vocabulary.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
@@ -63,6 +64,15 @@ class FluidStreamingAsr {
 
   /// Volatile and confirmed transcription updates for this session.
   Stream<FluidTranscriptionUpdate> get updates => _events.updatesFor(_instanceId);
+
+  /// Enables custom-vocabulary boosting for this session.
+  ///
+  /// Must be called before [start].
+  Future<void> configureVocabulary(FluidCtcVocabulary vocabulary) {
+    _checkNotDisposed();
+    return wrapPlatformErrors(
+        () => _hostApi.configureVocabulary(_instanceId, vocabulary.instanceId));
+  }
 
   /// Begins streaming. [source] tags the session's audio origin.
   Future<void> start({FluidAudioSource source = FluidAudioSource.microphone}) {

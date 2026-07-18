@@ -251,6 +251,11 @@ abstract class StreamingAsrHostApi {
   @async
   void feed(int instanceId, Uint8List float32Samples);
 
+  /// Enables custom-vocabulary boosting with a vocabulary created via
+  /// [CtcVocabularyHostApi.load]. Must be called before [start].
+  @async
+  void configureVocabulary(int instanceId, int vocabularyId);
+
   /// Flushes pending audio and returns the final transcript.
   @async
   String finish(int instanceId);
@@ -454,6 +459,56 @@ abstract class EouHostApi {
 
   @async
   void dispose(int instanceId);
+}
+
+// ---------------------------------------------------------------------------
+// M3: CTC custom vocabulary, inverse text normalization
+// (Qwen3 was removed upstream in FluidAudio 0.15.x and is not bound.)
+// ---------------------------------------------------------------------------
+
+class VocabularyTermMessage {
+  VocabularyTermMessage({required this.text, this.weight, this.aliases});
+
+  String text;
+  double? weight;
+  List<String>? aliases;
+}
+
+@HostApi()
+abstract class CtcVocabularyHostApi {
+  /// Downloads/loads the CTC-110M spotter models, tokenizes [terms], and
+  /// returns a vocabulary instance id for use with
+  /// [StreamingAsrHostApi.configureVocabulary].
+  @async
+  int load(List<VocabularyTermMessage> terms, double minSimilarity, int progressToken);
+
+  @async
+  void dispose(int instanceId);
+}
+
+@HostApi()
+abstract class ItnHostApi {
+  /// Whether the native NeMo normalization library is loadable; when false
+  /// all normalization calls are no-ops returning the input unchanged.
+  @async
+  bool isNativeAvailable();
+
+  /// Normalizes a single spoken-form expression to written form.
+  @async
+  String normalize(String text);
+
+  /// Sliding-window normalization across a full sentence.
+  @async
+  String normalizeSentence(String text, int? maxSpanTokens);
+
+  @async
+  void addRule(String spoken, String written);
+
+  @async
+  bool removeRule(String spoken);
+
+  @async
+  void clearRules();
 }
 
 @EventChannelApi()

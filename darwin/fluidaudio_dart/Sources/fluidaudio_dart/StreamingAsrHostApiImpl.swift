@@ -134,6 +134,27 @@ final class StreamingAsrHostApiImpl: StreamingAsrHostApi {
     completion(.success(()))
   }
 
+  func configureVocabulary(
+    instanceId: Int64, vocabularyId: Int64,
+    completion: @escaping (Result<Void, Error>) -> Void
+  ) {
+    guard let instance = instance(instanceId, orFail: completion) else { return }
+    guard let vocabulary = registry.get(vocabularyId, as: CtcVocabularyInstance.self) else {
+      completion(.failure(ErrorMapping.instanceNotFound(vocabularyId, kind: "CTC vocabulary")))
+      return
+    }
+    let manager = instance.manager
+    instance.queue.enqueue {
+      do {
+        try await manager.configureVocabularyBoosting(
+          vocabulary: vocabulary.context, ctcModels: vocabulary.models)
+        completion(.success(()))
+      } catch {
+        completion(.failure(ErrorMapping.map(error)))
+      }
+    }
+  }
+
   func finish(instanceId: Int64, completion: @escaping (Result<String, Error>) -> Void) {
     guard let instance = instance(instanceId, orFail: completion) else { return }
     let manager = instance.manager

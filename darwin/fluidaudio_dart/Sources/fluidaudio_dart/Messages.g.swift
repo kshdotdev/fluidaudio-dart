@@ -1094,6 +1094,51 @@ struct EouEventMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct VocabularyTermMessage: Hashable, CustomStringConvertible {
+  var text: String
+  var weight: Double? = nil
+  var aliases: [String]? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VocabularyTermMessage? {
+    let text = pigeonVar_list[0] as! String
+    let weight: Double? = nilOrValue(pigeonVar_list[1])
+    let aliases: [String]? = nilOrValue(pigeonVar_list[2])
+
+    return VocabularyTermMessage(
+      text: text,
+      weight: weight,
+      aliases: aliases
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      text,
+      weight,
+      aliases,
+    ]
+  }
+  static func == (lhs: VocabularyTermMessage, rhs: VocabularyTermMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.text, rhs.text) && MessagesPigeonInternal.deepEquals(lhs.weight, rhs.weight) && MessagesPigeonInternal.deepEquals(lhs.aliases, rhs.aliases)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("VocabularyTermMessage")
+    MessagesPigeonInternal.deepHash(value: text, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: weight, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: aliases, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "VocabularyTermMessage(text: \(String(describing: text)), weight: \(String(describing: weight)), aliases: \(String(describing: aliases)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1159,6 +1204,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
     case 149:
       return EouEventMessage.fromList(self.readValue() as! [Any?])
+    case 150:
+      return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1229,6 +1276,9 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? EouEventMessage {
       super.writeByte(149)
+      super.writeValue(value.toList())
+    } else if let value = value as? VocabularyTermMessage {
+      super.writeByte(150)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1537,6 +1587,9 @@ protocol StreamingAsrHostApi {
   /// Feeds 16 kHz mono float32 samples. Buffers are processed strictly in
   /// call order (serialized natively).
   func feed(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Enables custom-vocabulary boosting with a vocabulary created via
+  /// [CtcVocabularyHostApi.load]. Must be called before [start].
+  func configureVocabulary(instanceId: Int64, vocabularyId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
   /// Flushes pending audio and returns the final transcript.
   func finish(instanceId: Int64, completion: @escaping (Result<String, Error>) -> Void)
   func reset(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
@@ -1608,6 +1661,26 @@ class StreamingAsrHostApiSetup {
       }
     } else {
       feedChannel.setMessageHandler(nil)
+    }
+    /// Enables custom-vocabulary boosting with a vocabulary created via
+    /// [CtcVocabularyHostApi.load]. Must be called before [start].
+    let configureVocabularyChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.configureVocabulary\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      configureVocabularyChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let vocabularyIdArg = args[1] as! Int64
+        api.configureVocabulary(instanceId: instanceIdArg, vocabularyId: vocabularyIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      configureVocabularyChannel.setMessageHandler(nil)
     }
     /// Flushes pending audio and returns the final transcript.
     let finishChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.StreamingAsrHostApi.finish\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
@@ -2027,6 +2100,188 @@ class EouHostApiSetup {
       }
     } else {
       disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol CtcVocabularyHostApi {
+  /// Downloads/loads the CTC-110M spotter models, tokenizes [terms], and
+  /// returns a vocabulary instance id for use with
+  /// [StreamingAsrHostApi.configureVocabulary].
+  func load(terms: [VocabularyTermMessage], minSimilarity: Double, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class CtcVocabularyHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `CtcVocabularyHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: CtcVocabularyHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Downloads/loads the CTC-110M spotter models, tokenizes [terms], and
+    /// returns a vocabulary instance id for use with
+    /// [StreamingAsrHostApi.configureVocabulary].
+    let loadChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.load\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      loadChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let termsArg = args[0] as! [VocabularyTermMessage]
+        let minSimilarityArg = args[1] as! Double
+        let progressTokenArg = args[2] as! Int64
+        api.load(terms: termsArg, minSimilarity: minSimilarityArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      loadChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol ItnHostApi {
+  /// Whether the native NeMo normalization library is loadable; when false
+  /// all normalization calls are no-ops returning the input unchanged.
+  func isNativeAvailable(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Normalizes a single spoken-form expression to written form.
+  func normalize(text: String, completion: @escaping (Result<String, Error>) -> Void)
+  /// Sliding-window normalization across a full sentence.
+  func normalizeSentence(text: String, maxSpanTokens: Int64?, completion: @escaping (Result<String, Error>) -> Void)
+  func addRule(spoken: String, written: String, completion: @escaping (Result<Void, Error>) -> Void)
+  func removeRule(spoken: String, completion: @escaping (Result<Bool, Error>) -> Void)
+  func clearRules(completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class ItnHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `ItnHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: ItnHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Whether the native NeMo normalization library is loadable; when false
+    /// all normalization calls are no-ops returning the input unchanged.
+    let isNativeAvailableChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.isNativeAvailable\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isNativeAvailableChannel.setMessageHandler { _, reply in
+        api.isNativeAvailable { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isNativeAvailableChannel.setMessageHandler(nil)
+    }
+    /// Normalizes a single spoken-form expression to written form.
+    let normalizeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalize\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      normalizeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let textArg = args[0] as! String
+        api.normalize(text: textArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      normalizeChannel.setMessageHandler(nil)
+    }
+    /// Sliding-window normalization across a full sentence.
+    let normalizeSentenceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalizeSentence\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      normalizeSentenceChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let textArg = args[0] as! String
+        let maxSpanTokensArg: Int64? = nilOrValue(args[1])
+        api.normalizeSentence(text: textArg, maxSpanTokens: maxSpanTokensArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      normalizeSentenceChannel.setMessageHandler(nil)
+    }
+    let addRuleChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.addRule\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      addRuleChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let spokenArg = args[0] as! String
+        let writtenArg = args[1] as! String
+        api.addRule(spoken: spokenArg, written: writtenArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      addRuleChannel.setMessageHandler(nil)
+    }
+    let removeRuleChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.removeRule\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      removeRuleChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let spokenArg = args[0] as! String
+        api.removeRule(spoken: spokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      removeRuleChannel.setMessageHandler(nil)
+    }
+    let clearRulesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.clearRules\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      clearRulesChannel.setMessageHandler { _, reply in
+        api.clearRules { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      clearRulesChannel.setMessageHandler(nil)
     }
   }
 }
