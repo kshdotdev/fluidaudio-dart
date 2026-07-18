@@ -85,6 +85,10 @@ class FluidVadStream {
   /// Number of samples per [feed] chunk (256 ms at 16 kHz).
   static const int chunkSize = 4096;
 
+  /// Channel-visible stream id, used by [FluidMicrophone] attachments.
+  @internal
+  int get channelInstanceId => _streamId;
+
   Stream<FluidVadStreamEvent> get events => _events.vadEventsFor(_streamId);
 
   /// Feeds one chunk of [chunkSize] 16 kHz mono float32 samples. Chunks are

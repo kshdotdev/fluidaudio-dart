@@ -607,6 +607,44 @@ abstract class AudioHostApi {
   Uint8List encodeWav(Uint8List float32Samples, double sampleRate);
 }
 
+// ---------------------------------------------------------------------------
+// M5: native microphone capture
+// ---------------------------------------------------------------------------
+
+/// A captured microphone frame (16 kHz mono), emitted when frame emission is
+/// enabled — for waveform/level UI, not for round-tripping audio.
+class MicFrameMessage {
+  MicFrameMessage({required this.samples, required this.rms});
+
+  /// Float32 PCM bytes at 16 kHz mono.
+  Uint8List samples;
+
+  /// Root-mean-square level of this frame (0..1-ish), for level meters.
+  double rms;
+}
+
+@HostApi()
+abstract class MicrophoneHostApi {
+  /// Starts microphone capture and fans the 16 kHz mono stream out natively
+  /// to the given sessions (no audio crosses the platform channel):
+  /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
+  /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
+  /// also published on the `micFrames` stream for UI.
+  @async
+  void start(
+    List<int> asrInstanceIds,
+    List<int> eouInstanceIds,
+    List<int> vadStreamIds,
+    bool emitFrames,
+  );
+
+  @async
+  void stop();
+
+  @async
+  bool isRunning();
+}
+
 @EventChannelApi()
 abstract class FluidAudioEventChannelApi {
   DebugEventMessage debugEvents();
@@ -616,4 +654,5 @@ abstract class FluidAudioEventChannelApi {
   DiarizationProgressMessage diarizationProgress();
   EouEventMessage eouEvents();
   TtsChunkMessage ttsChunks();
+  MicFrameMessage micFrames();
 }

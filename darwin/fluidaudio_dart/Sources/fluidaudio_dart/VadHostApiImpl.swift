@@ -28,6 +28,21 @@ final class VadStreamInstance {
     self.config = config
     self.state = VadStreamState.initial()
   }
+
+  /// Processes one exact-size chunk on the serial queue and emits the result.
+  /// Shared by the channel feed path and native mic capture.
+  func feedChunk(_ chunk: [Float], streamId: Int64, events: VadEventsHandler) {
+    queue.enqueue { [self] in
+      do {
+        let result = try await vad.manager.processStreamingChunk(
+          chunk, state: state, config: config, returnSeconds: true)
+        state = result.state
+        events.emit(streamId: streamId, result: result)
+      } catch {
+        NSLog("fluidaudio_dart VAD stream error: \(error)")
+      }
+    }
+  }
 }
 
 final class VadHostApiImpl: VadHostApi {
@@ -120,20 +135,7 @@ final class VadHostApiImpl: VadHostApi {
       completion(.failure(ErrorMapping.instanceNotFound(streamId, kind: "VAD stream")))
       return
     }
-    let chunk = AudioBridge.floats(from: float32Chunk)
-    let events = self.events
-    stream.queue.enqueue {
-      do {
-        let result = try await stream.vad.manager.processStreamingChunk(
-          chunk, state: stream.state, config: stream.config, returnSeconds: true)
-        stream.state = result.state
-        events.emit(streamId: streamId, result: result)
-      } catch {
-        // Surface processing errors as a failed tick is not possible on the
-        // event DTO; log and keep the stream alive.
-        NSLog("fluidaudio_dart VAD stream error: \(error)")
-      }
-    }
+    stream.feedChunk(AudioBridge.floats(from: float32Chunk), streamId: streamId, events: events)
     completion(.success(()))
   }
 

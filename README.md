@@ -18,12 +18,12 @@ final asr = await FluidAsr.load(); // downloads Parakeet v3 on first use
 final result = await asr.transcribe(samples16kHzMonoFloat32);
 print(result.text);
 
-// Live streaming with partial/confirmed updates:
+// Live mic dictation with partial/confirmed updates:
 final session = await FluidStreamingAsr.create();
 session.updates.listen((u) => print('${u.isConfirmed ? "✓" : "…"} ${u.text}'));
 await session.start();
-// feed 16 kHz mono Float32List chunks as they arrive:
-await session.feed(chunk);
+await FluidMicrophone().start(transcribers: [session]); // native capture
+// ... later:
 final transcript = await session.finish();
 ```
 
@@ -60,6 +60,9 @@ See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
       0.15.x removed it; it will be bound if it returns upstream.)
 - [x] **M4** — TTS (Kokoro, PocketTTS incl. streaming + voice cloning), audio
       conversion utilities
+- [x] **M5** — native microphone capture (`FluidMicrophone`): AVAudioEngine →
+      16 kHz mono → fanned out natively to streaming-ASR / EOU / VAD sessions;
+      audio never crosses the platform channel
 
 ## CocoaPods note
 

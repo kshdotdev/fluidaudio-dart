@@ -24,6 +24,10 @@ class FluidEou {
   final FluidEventHub _events;
   bool _disposed = false;
 
+  /// Channel-visible instance id, used by [FluidMicrophone] attachments.
+  @internal
+  int get channelInstanceId => _instanceId;
+
   /// Loads the EOU model (auto-downloads on first use; ~450 MB).
   static Future<FluidEou> create({
     EouChunkSize chunkSize = EouChunkSize.ms320,

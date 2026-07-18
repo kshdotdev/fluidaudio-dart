@@ -26,6 +26,10 @@ class FluidStreamingAsr {
   final FluidEventHub _events;
   bool _disposed = false;
 
+  /// Channel-visible instance id, used by [FluidMicrophone] attachments.
+  @internal
+  int get channelInstanceId => _instanceId;
+
   /// Loads models (downloading if needed) and creates a session.
   static Future<FluidStreamingAsr> create({
     AsrVersion version = AsrVersion.v3,

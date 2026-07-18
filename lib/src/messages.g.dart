@@ -1345,6 +1345,60 @@ class TtsChunkMessage {
   }
 }
 
+/// A captured microphone frame (16 kHz mono), emitted when frame emission is
+/// enabled — for waveform/level UI, not for round-tripping audio.
+class MicFrameMessage {
+  MicFrameMessage({
+    required this.samples,
+    required this.rms,
+  });
+
+  /// Float32 PCM bytes at 16 kHz mono.
+  Uint8List samples;
+
+  /// Root-mean-square level of this frame (0..1-ish), for level meters.
+  double rms;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      samples,
+      rms,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static MicFrameMessage decode(Object result) {
+    result as List<Object?>;
+    return MicFrameMessage(
+      samples: result[0]! as Uint8List,
+      rms: result[1]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! MicFrameMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(samples, other.samples) && _deepEquals(rms, other.rms);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'MicFrameMessage(samples: $samples, rms: $rms)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1428,6 +1482,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is TtsChunkMessage) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
+    }    else if (value is MicFrameMessage) {
+      buffer.putUint8(154);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1492,6 +1549,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return TtsResultMessage.decode(readValue(buffer)!);
       case 153:
         return TtsChunkMessage.decode(readValue(buffer)!);
+      case 154:
+        return MicFrameMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2725,6 +2784,80 @@ class AudioHostApi {
   }
 }
 
+class MicrophoneHostApi {
+  /// Constructor for [MicrophoneHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  MicrophoneHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Starts microphone capture and fans the 16 kHz mono stream out natively
+  /// to the given sessions (no audio crosses the platform channel):
+  /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
+  /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
+  /// also published on the `micFrames` stream for UI.
+  Future<void> start(List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.start$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> stop() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.stop$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<bool> isRunning() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.isRunning$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+}
+
 /// Returns a broadcast [Stream] of events from the `debugEvents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
@@ -2841,6 +2974,23 @@ Stream<TtsChunkMessage> ttsChunks( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.ttsChunks$instanceName', pigeonMethodCodec);
   return ttsChunksChannel.receiveBroadcastStream().map((dynamic event) {
     return event as TtsChunkMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `micFrames` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<MicFrameMessage> micFrames( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel micFramesChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.micFrames$instanceName', pigeonMethodCodec);
+  return micFramesChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as MicFrameMessage;
   });
 }
     

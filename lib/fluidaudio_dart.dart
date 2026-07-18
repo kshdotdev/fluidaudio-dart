@@ -19,6 +19,7 @@ export 'src/events.dart' show FluidDownloadProgressFailure;
 export 'src/exceptions.dart'
     show FluidAudioException, FluidDownloadException, FluidInstanceGoneException;
 export 'src/itn.dart' show FluidItn;
+export 'src/microphone.dart' show FluidMicFrame, FluidMicrophone;
 export 'src/models.dart' show FluidModels;
 export 'src/streaming_asr.dart' show FluidStreamingAsr;
 export 'src/system.dart' show FluidAudioSystem, FluidDebugEvent, FluidSystemInfo;

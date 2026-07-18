@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- M5: native microphone capture (`FluidMicrophone`) — AVAudioEngine tap,
+  native resample to 16 kHz mono, direct fan-out to attached streaming-ASR /
+  EOU / VAD sessions (audio never crosses the platform channel), optional
+  frame/level events for UI; example gains a Live Mic dictation tab.
+
 - M4: text-to-speech — `FluidKokoroTts` (ANE, 24 kHz, voice ids like
   `af_heart`) and `FluidPocketTts` (streaming 80 ms frames, voice cloning
   from reference audio); `FluidAudioConverter` (file/sample resampling to

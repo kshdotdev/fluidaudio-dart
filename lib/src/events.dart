@@ -21,6 +21,7 @@ class FluidEventHub {
     Stream<messages.DiarizationProgressMessage>? diarizationProgress,
     Stream<messages.EouEventMessage>? eouEvents,
     Stream<messages.TtsChunkMessage>? ttsChunks,
+    Stream<messages.MicFrameMessage>? micFrames,
   }) {
     _transcriptionUpdates = transcriptionUpdates;
     _downloadProgress = downloadProgress;
@@ -28,6 +29,7 @@ class FluidEventHub {
     _diarizationProgress = diarizationProgress;
     _eouEvents = eouEvents;
     _ttsChunks = ttsChunks;
+    _micFrames = micFrames;
   }
 
   static final FluidEventHub instance = FluidEventHub._();
@@ -38,6 +40,7 @@ class FluidEventHub {
   Stream<messages.DiarizationProgressMessage>? _diarizationProgress;
   Stream<messages.EouEventMessage>? _eouEvents;
   Stream<messages.TtsChunkMessage>? _ttsChunks;
+  Stream<messages.MicFrameMessage>? _micFrames;
 
   int _nextToken = 1;
 
@@ -73,6 +76,9 @@ class FluidEventHub {
 
   Stream<messages.TtsChunkMessage> get ttsChunks =>
       _ttsChunks ??= messages.ttsChunks().asBroadcastStream();
+
+  Stream<messages.MicFrameMessage> get micFrames =>
+      _micFrames ??= messages.micFrames().asBroadcastStream();
 
   /// Synthesis frames for one TTS session.
   Stream<messages.TtsChunkMessage> ttsChunksFor(int instanceId) {

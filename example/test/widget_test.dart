@@ -15,6 +15,7 @@ void main() {
       'VAD',
       'Diarize',
       'TTS',
+      'Live Mic',
     ]) {
       expect(find.text(tab), findsOneWidget);
     }

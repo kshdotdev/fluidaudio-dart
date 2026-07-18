@@ -1250,6 +1250,51 @@ struct TtsChunkMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// A captured microphone frame (16 kHz mono), emitted when frame emission is
+/// enabled — for waveform/level UI, not for round-tripping audio.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct MicFrameMessage: Hashable, CustomStringConvertible {
+  /// Float32 PCM bytes at 16 kHz mono.
+  var samples: FlutterStandardTypedData
+  /// Root-mean-square level of this frame (0..1-ish), for level meters.
+  var rms: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> MicFrameMessage? {
+    let samples = pigeonVar_list[0] as! FlutterStandardTypedData
+    let rms = pigeonVar_list[1] as! Double
+
+    return MicFrameMessage(
+      samples: samples,
+      rms: rms
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      samples,
+      rms,
+    ]
+  }
+  static func == (lhs: MicFrameMessage, rhs: MicFrameMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.samples, rhs.samples) && MessagesPigeonInternal.deepEquals(lhs.rms, rhs.rms)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("MicFrameMessage")
+    MessagesPigeonInternal.deepHash(value: samples, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rms, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "MicFrameMessage(samples: \(String(describing: samples)), rms: \(String(describing: rms)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1327,6 +1372,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return TtsResultMessage.fromList(self.readValue() as! [Any?])
     case 153:
       return TtsChunkMessage.fromList(self.readValue() as! [Any?])
+    case 154:
+      return MicFrameMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1409,6 +1456,9 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? TtsChunkMessage {
       super.writeByte(153)
+      super.writeValue(value.toList())
+    } else if let value = value as? MicFrameMessage {
+      super.writeByte(154)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2698,6 +2748,81 @@ class AudioHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol MicrophoneHostApi {
+  /// Starts microphone capture and fans the 16 kHz mono stream out natively
+  /// to the given sessions (no audio crosses the platform channel):
+  /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
+  /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
+  /// also published on the `micFrames` stream for UI.
+  func start(asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  func stop(completion: @escaping (Result<Void, Error>) -> Void)
+  func isRunning(completion: @escaping (Result<Bool, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class MicrophoneHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `MicrophoneHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: MicrophoneHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Starts microphone capture and fans the 16 kHz mono stream out natively
+    /// to the given sessions (no audio crosses the platform channel):
+    /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
+    /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
+    /// also published on the `micFrames` stream for UI.
+    let startChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.start\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let asrInstanceIdsArg = args[0] as! [Int64]
+        let eouInstanceIdsArg = args[1] as! [Int64]
+        let vadStreamIdsArg = args[2] as! [Int64]
+        let emitFramesArg = args[3] as! Bool
+        api.start(asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startChannel.setMessageHandler(nil)
+    }
+    let stopChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.stop\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopChannel.setMessageHandler { _, reply in
+        api.stop { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopChannel.setMessageHandler(nil)
+    }
+    let isRunningChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.isRunning\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isRunningChannel.setMessageHandler { _, reply in
+        api.isRunning { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isRunningChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
   private let wrapper: PigeonEventChannelWrapper<ReturnType>
@@ -2841,6 +2966,20 @@ class TtsChunksStreamHandler: PigeonEventChannelWrapper<TtsChunkMessage> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<TtsChunkMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class MicFramesStreamHandler: PigeonEventChannelWrapper<MicFrameMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: MicFramesStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.micFrames"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<MicFrameMessage>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }
