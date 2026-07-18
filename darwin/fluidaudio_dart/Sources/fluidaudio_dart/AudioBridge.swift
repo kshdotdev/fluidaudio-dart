@@ -27,6 +27,10 @@ enum AudioBridge {
     return FlutterStandardTypedData(bytes: data)
   }
 
+  /// The library-wide capture interchange format.
+  static let captureFormat = AVAudioFormat(
+    commonFormat: .pcmFormatFloat32, sampleRate: 16000, channels: 1, interleaved: false)!
+
   /// Wraps 16 kHz mono float32 samples in an `AVAudioPCMBuffer` for the
   /// FluidAudio streaming APIs. Buffers never cross the channel boundary
   /// (AVAudioPCMBuffer is non-Sendable); they are built here, natively.
@@ -50,5 +54,47 @@ enum AudioBridge {
       }
     }
     return buffer
+  }
+}
+
+/// Streams sequential capture buffers through ONE `AVAudioConverter` to
+/// 16 kHz mono, preserving the resampler's anti-aliasing filter state across
+/// buffer boundaries (a fresh converter per buffer re-primes the filter every
+/// ~10 ms and introduces boundary artifacts).
+///
+/// Not thread-safe: feed from a single serial consumer.
+final class PersistentResampler {
+  private let converter: AVAudioConverter
+
+  init?(from inputFormat: AVAudioFormat) {
+    guard let converter = AVAudioConverter(from: inputFormat, to: AudioBridge.captureFormat)
+    else { return nil }
+    self.converter = converter
+  }
+
+  func resample(_ buffer: AVAudioPCMBuffer) -> [Float]? {
+    guard buffer.frameLength > 0 else { return [] }
+    let ratio = AudioBridge.captureFormat.sampleRate / buffer.format.sampleRate
+    let capacity = AVAudioFrameCount((Double(buffer.frameLength) * ratio).rounded(.up)) + 64
+    guard
+      let output = AVAudioPCMBuffer(
+        pcmFormat: AudioBridge.captureFormat, frameCapacity: capacity)
+    else { return nil }
+
+    var consumed = false
+    var conversionError: NSError?
+    // `.noDataNow` (not end-of-stream) keeps the filter state alive for the
+    // next buffer.
+    let status = converter.convert(to: output, error: &conversionError) { _, outStatus in
+      if consumed {
+        outStatus.pointee = .noDataNow
+        return nil
+      }
+      consumed = true
+      outStatus.pointee = .haveData
+      return buffer
+    }
+    guard status != .error, let channelData = output.floatChannelData else { return nil }
+    return Array(UnsafeBufferPointer(start: channelData[0], count: Int(output.frameLength)))
   }
 }

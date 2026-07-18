@@ -2,6 +2,13 @@
 
 ## 0.1.0 (unreleased)
 
+- `FluidSystemAudio.listAudioProcesses()`: enumerate Core Audio processes
+  (pid, bundle id, is-playing) to pick tap targets by app — no permission
+  needed for the metadata. M6 review fixes: capture paths now use one
+  persistent resampler per session (filter state carries across buffers —
+  no more per-buffer converter rebuilds), out-of-range PIDs are rejected
+  instead of trapping.
+
 - M6: system-audio capture (`FluidSystemAudio`, macOS 14.4+) via Core Audio
   process taps — captures other applications' audio (global-except-self or
   targeted PIDs), resampled natively to 16 kHz and fanned out to attached

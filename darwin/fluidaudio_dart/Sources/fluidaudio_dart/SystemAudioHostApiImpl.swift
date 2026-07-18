@@ -46,7 +46,6 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
   final class SystemAudioCapture {
     private let ioQueue = DispatchQueue(label: "fluidaudio_dart.systemaudio", qos: .userInitiated)
     private let fanoutQueue = SerialTaskQueue()
-    private let converter = AudioConverter()
     private let runningState = OSAllocatedUnfairLock(initialState: false)
 
     private var tapID = AudioObjectID(kAudioObjectUnknown)
@@ -71,7 +70,9 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       } else {
         var objects: [AudioObjectID] = []
         for pid in processIds {
-          let object = Self.translatePIDToProcessObject(pid_t(pid))
+          // Reject out-of-range values instead of trapping on the conversion.
+          guard let validPid = pid_t(exactly: pid) else { continue }
+          let object = Self.translatePIDToProcessObject(validPid)
           if object != AudioObjectID(kAudioObjectUnknown) {
             objects.append(object)
           }
@@ -123,16 +124,24 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       }
       aggregateID = aggregate
 
-      // 3. Input format from the tap ASBD.
+      // 3. Input format from the tap ASBD; one converter for the whole
+      //    session so resampler filter state carries across buffers.
       guard let inputFormat = Self.tapStreamFormat(tapID) else {
         unwind()
         throw PigeonError(
           code: "TapFormatUnavailable", message: "Could not read the tap's stream format",
           details: nil)
       }
+      guard let resampler = PersistentResampler(from: inputFormat) else {
+        unwind()
+        throw PigeonError(
+          code: "ConverterUnavailable",
+          message: "Could not build a converter for the tap format \(inputFormat)", details: nil)
+      }
 
-      // 4. IOProc on a dedicated queue; CoreAudio copies buffers before
-      //    dispatch, so resampling inline here is safe.
+      // 4. IOProc on a dedicated serial queue; CoreAudio copies buffers
+      //    before dispatch, so resampling inline here is safe (and keeps the
+      //    single-consumer contract of the resampler).
       var procID: AudioDeviceIOProcID?
       status = AudioDeviceCreateIOProcIDWithBlock(&procID, aggregateID, ioQueue) {
         [weak self] _, inInputData, _, _, _ in
@@ -141,7 +150,8 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
           let buffer = AVAudioPCMBuffer(
             pcmFormat: inputFormat, bufferListNoCopy: inInputData, deallocator: nil),
           buffer.frameLength > 0,
-          let samples = try? self.converter.resampleBuffer(buffer)
+          let samples = resampler.resample(buffer),
+          !samples.isEmpty
         else { return }
         self.fanoutQueue.enqueue { fanout.dispatch(samples) }
       }
@@ -220,6 +230,70 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       return AVAudioFormat(streamDescription: &asbd)
     }
 
+    /// Enumerates processes known to Core Audio. Reading this metadata needs
+    /// no TCC permission — only tapping audio content does.
+    static func listAudioProcesses() -> [AudioProcessMessage] {
+      var address = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyProcessObjectList,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMain)
+      var size: UInt32 = 0
+      guard
+        AudioObjectGetPropertyDataSize(
+          AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size) == noErr,
+        size > 0
+      else { return [] }
+
+      var objects = [AudioObjectID](
+        repeating: AudioObjectID(kAudioObjectUnknown),
+        count: Int(size) / MemoryLayout<AudioObjectID>.size)
+      guard
+        AudioObjectGetPropertyData(
+          AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size, &objects) == noErr
+      else { return [] }
+
+      var processes: [AudioProcessMessage] = []
+      for object in objects where object != AudioObjectID(kAudioObjectUnknown) {
+        var pidAddress = AudioObjectPropertyAddress(
+          mSelector: kAudioProcessPropertyPID,
+          mScope: kAudioObjectPropertyScopeGlobal,
+          mElement: kAudioObjectPropertyElementMain)
+        var pid: pid_t = 0
+        var pidSize = UInt32(MemoryLayout<pid_t>.size)
+        guard AudioObjectGetPropertyData(object, &pidAddress, 0, nil, &pidSize, &pid) == noErr
+        else { continue }
+
+        var bundleAddress = AudioObjectPropertyAddress(
+          mSelector: kAudioProcessPropertyBundleID,
+          mScope: kAudioObjectPropertyScopeGlobal,
+          mElement: kAudioObjectPropertyElementMain)
+        var bundleRef: Unmanaged<CFString>?
+        var bundleSize = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        var bundleId = ""
+        if AudioObjectGetPropertyData(object, &bundleAddress, 0, nil, &bundleSize, &bundleRef)
+          == noErr,
+          let bundleRef
+        {
+          // Create rule: the returned CFString is +1 retained.
+          bundleId = bundleRef.takeRetainedValue() as String
+        }
+
+        var runningAddress = AudioObjectPropertyAddress(
+          mSelector: kAudioProcessPropertyIsRunningOutput,
+          mScope: kAudioObjectPropertyScopeGlobal,
+          mElement: kAudioObjectPropertyElementMain)
+        var isRunning: UInt32 = 0
+        var runningSize = UInt32(MemoryLayout<UInt32>.size)
+        _ = AudioObjectGetPropertyData(
+          object, &runningAddress, 0, nil, &runningSize, &isRunning)
+
+        processes.append(
+          AudioProcessMessage(
+            pid: Int64(pid), bundleId: bundleId, isPlayingAudio: isRunning != 0))
+      }
+      return processes
+    }
+
     /// Preflight: try to create (and immediately destroy) a throwaway tap.
     /// The first attempt triggers the System Audio Recording TCC prompt;
     /// there is no direct request API.
@@ -264,6 +338,18 @@ final class SystemAudioHostApiImpl: SystemAudioHostApi {
 
   func isSupported(completion: @escaping (Result<Bool, Error>) -> Void) {
     completion(.success(Self.supported))
+  }
+
+  func listAudioProcesses(
+    completion: @escaping (Result<[AudioProcessMessage], Error>) -> Void
+  ) {
+    #if os(macOS)
+      if #available(macOS 14.4, *) {
+        completion(.success(SystemAudioCapture.listAudioProcesses()))
+        return
+      }
+    #endif
+    completion(.success([]))
   }
 
   func requestPermission(completion: @escaping (Result<Bool, Error>) -> Void) {

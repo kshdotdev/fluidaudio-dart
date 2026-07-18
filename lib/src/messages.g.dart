@@ -1407,6 +1407,63 @@ class MicFrameMessage {
   }
 }
 
+/// A process currently known to Core Audio (candidate for a targeted tap).
+class AudioProcessMessage {
+  AudioProcessMessage({
+    required this.pid,
+    required this.bundleId,
+    required this.isPlayingAudio,
+  });
+
+  int pid;
+
+  String bundleId;
+
+  /// Whether the process currently has running audio output.
+  bool isPlayingAudio;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      pid,
+      bundleId,
+      isPlayingAudio,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static AudioProcessMessage decode(Object result) {
+    result as List<Object?>;
+    return AudioProcessMessage(
+      pid: result[0]! as int,
+      bundleId: result[1]! as String,
+      isPlayingAudio: result[2]! as bool,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! AudioProcessMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(pid, other.pid) && _deepEquals(bundleId, other.bundleId) && _deepEquals(isPlayingAudio, other.isPlayingAudio);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'AudioProcessMessage(pid: $pid, bundleId: $bundleId, isPlayingAudio: $isPlayingAudio)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -1493,6 +1550,9 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is MicFrameMessage) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
+    }    else if (value is AudioProcessMessage) {
+      buffer.putUint8(155);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -1559,6 +1619,8 @@ class _PigeonCodec extends StandardMessageCodec {
         return TtsChunkMessage.decode(readValue(buffer)!);
       case 154:
         return MicFrameMessage.decode(readValue(buffer)!);
+      case 155:
+        return AudioProcessMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -2900,6 +2962,28 @@ class SystemAudioHostApi {
     )
     ;
     return pigeonVar_replyValue! as bool;
+  }
+
+  /// Lists processes known to Core Audio (reading this metadata needs no
+  /// permission — only tapping audio content does). Use the PIDs with
+  /// [start]'s processIds to tap one application.
+  Future<List<AudioProcessMessage>> listAudioProcesses() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.listAudioProcesses$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return (pigeonVar_replyValue! as List<Object?>).cast<AudioProcessMessage>();
   }
 
   /// Preflights the "System Audio Recording" permission by creating a

@@ -9,6 +9,24 @@ import 'microphone.dart';
 import 'streaming_asr.dart';
 import 'vad.dart';
 
+/// A process currently known to Core Audio — a candidate for a targeted tap.
+class FluidAudioProcess {
+  const FluidAudioProcess({
+    required this.pid,
+    required this.bundleId,
+    required this.isPlayingAudio,
+  });
+
+  final int pid;
+
+  /// Bundle identifier (helpers keep their own ids, e.g.
+  /// `com.google.Chrome.helper` under Chrome); may be empty.
+  final String bundleId;
+
+  /// Whether the process currently has running audio output.
+  final bool isPlayingAudio;
+}
+
 /// System-audio capture via Core Audio process taps (macOS 14.4+ only).
 ///
 /// Captures what other applications are playing — all of them by default, or
@@ -37,6 +55,23 @@ class FluidSystemAudio {
 
   /// Whether process-tap capture is available on this platform.
   Future<bool> get isSupported => wrapPlatformErrors(() => _hostApi.isSupported());
+
+  /// Lists processes known to Core Audio (no permission needed for this
+  /// metadata). Match by [FluidAudioProcess.bundleId] — including helper
+  /// processes, which carry the audio for Electron/Chromium apps — and pass
+  /// the PIDs to [start]. A process appears here only once it has opened
+  /// audio.
+  Future<List<FluidAudioProcess>> listAudioProcesses() async {
+    final processes = await wrapPlatformErrors(() => _hostApi.listAudioProcesses());
+    return [
+      for (final process in processes)
+        FluidAudioProcess(
+          pid: process.pid,
+          bundleId: process.bundleId,
+          isPlayingAudio: process.isPlayingAudio,
+        ),
+    ];
+  }
 
   /// Preflights the System Audio Recording permission; the OS shows its
   /// prompt on the first attempt. Returns whether tapping is currently

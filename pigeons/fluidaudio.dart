@@ -657,12 +657,33 @@ abstract class MicrophoneHostApi {
 // M6: system-audio capture (macOS 14.4+ Core Audio process taps)
 // ---------------------------------------------------------------------------
 
+/// A process currently known to Core Audio (candidate for a targeted tap).
+class AudioProcessMessage {
+  AudioProcessMessage({
+    required this.pid,
+    required this.bundleId,
+    required this.isPlayingAudio,
+  });
+
+  int pid;
+  String bundleId;
+
+  /// Whether the process currently has running audio output.
+  bool isPlayingAudio;
+}
+
 @HostApi()
 abstract class SystemAudioHostApi {
   /// Whether process-tap capture is available (macOS 14.4+; always false on
   /// iOS).
   @async
   bool isSupported();
+
+  /// Lists processes known to Core Audio (reading this metadata needs no
+  /// permission — only tapping audio content does). Use the PIDs with
+  /// [start]'s processIds to tap one application.
+  @async
+  List<AudioProcessMessage> listAudioProcesses();
 
   /// Preflights the "System Audio Recording" permission by creating a
   /// throwaway tap. Returns true when tapping is allowed; on first call the

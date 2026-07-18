@@ -24,6 +24,12 @@ class _FakeSystemAudioHostApi implements messages.SystemAudioHostApi {
   Future<bool> isSupported() async => true;
 
   @override
+  Future<List<messages.AudioProcessMessage>> listAudioProcesses() async => [
+        messages.AudioProcessMessage(
+            pid: 4242, bundleId: 'com.example.player', isPlayingAudio: true),
+      ];
+
+  @override
   Future<bool> requestPermission() async => true;
 
   @override
@@ -88,6 +94,12 @@ void main() {
 
     expect(await systemAudio.isSupported, isTrue);
     expect(await systemAudio.requestPermission(), isTrue);
+
+    final processes = await systemAudio.listAudioProcesses();
+    expect(processes, hasLength(1));
+    expect(processes.single.pid, 4242);
+    expect(processes.single.bundleId, 'com.example.player');
+    expect(processes.single.isPlayingAudio, isTrue);
 
     final session = await FluidStreamingAsr.create(
       hostApi: _FakeStreamingAsrHostApi(),

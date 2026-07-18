@@ -23,7 +23,7 @@ export 'src/microphone.dart' show FluidMicFrame, FluidMicrophone;
 export 'src/models.dart' show FluidModels;
 export 'src/streaming_asr.dart' show FluidStreamingAsr;
 export 'src/system.dart' show FluidAudioSystem, FluidDebugEvent, FluidSystemInfo;
-export 'src/system_audio.dart' show FluidSystemAudio;
+export 'src/system_audio.dart' show FluidAudioProcess, FluidSystemAudio;
 export 'src/tts.dart'
     show
         FluidKokoroTts,

@@ -1303,6 +1303,54 @@ struct MicFrameMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// A process currently known to Core Audio (candidate for a targeted tap).
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct AudioProcessMessage: Hashable, CustomStringConvertible {
+  var pid: Int64
+  var bundleId: String
+  /// Whether the process currently has running audio output.
+  var isPlayingAudio: Bool
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> AudioProcessMessage? {
+    let pid = pigeonVar_list[0] as! Int64
+    let bundleId = pigeonVar_list[1] as! String
+    let isPlayingAudio = pigeonVar_list[2] as! Bool
+
+    return AudioProcessMessage(
+      pid: pid,
+      bundleId: bundleId,
+      isPlayingAudio: isPlayingAudio
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      pid,
+      bundleId,
+      isPlayingAudio,
+    ]
+  }
+  static func == (lhs: AudioProcessMessage, rhs: AudioProcessMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.pid, rhs.pid) && MessagesPigeonInternal.deepEquals(lhs.bundleId, rhs.bundleId) && MessagesPigeonInternal.deepEquals(lhs.isPlayingAudio, rhs.isPlayingAudio)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("AudioProcessMessage")
+    MessagesPigeonInternal.deepHash(value: pid, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: bundleId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isPlayingAudio, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "AudioProcessMessage(pid: \(String(describing: pid)), bundleId: \(String(describing: bundleId)), isPlayingAudio: \(String(describing: isPlayingAudio)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -1382,6 +1430,8 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       return TtsChunkMessage.fromList(self.readValue() as! [Any?])
     case 154:
       return MicFrameMessage.fromList(self.readValue() as! [Any?])
+    case 155:
+      return AudioProcessMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -1467,6 +1517,9 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? MicFrameMessage {
       super.writeByte(154)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioProcessMessage {
+      super.writeByte(155)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2840,6 +2893,10 @@ protocol SystemAudioHostApi {
   /// Whether process-tap capture is available (macOS 14.4+; always false on
   /// iOS).
   func isSupported(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Lists processes known to Core Audio (reading this metadata needs no
+  /// permission — only tapping audio content does). Use the PIDs with
+  /// [start]'s processIds to tap one application.
+  func listAudioProcesses(completion: @escaping (Result<[AudioProcessMessage], Error>) -> Void)
   /// Preflights the "System Audio Recording" permission by creating a
   /// throwaway tap. Returns true when tapping is allowed; on first call the
   /// OS shows the TCC prompt (there is no direct request API).
@@ -2875,6 +2932,24 @@ class SystemAudioHostApiSetup {
       }
     } else {
       isSupportedChannel.setMessageHandler(nil)
+    }
+    /// Lists processes known to Core Audio (reading this metadata needs no
+    /// permission — only tapping audio content does). Use the PIDs with
+    /// [start]'s processIds to tap one application.
+    let listAudioProcessesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.listAudioProcesses\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      listAudioProcessesChannel.setMessageHandler { _, reply in
+        api.listAudioProcesses { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      listAudioProcessesChannel.setMessageHandler(nil)
     }
     /// Preflights the "System Audio Recording" permission by creating a
     /// throwaway tap. Returns true when tapping is allowed; on first call the

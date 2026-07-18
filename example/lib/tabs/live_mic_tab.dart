@@ -106,6 +106,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       _session = session;
       _vad = vad;
       _vadStream = vadStream;
+      if (!mounted) return;
       setState(() {
         _live = true;
         _status = _source == _CaptureSource.systemAudio

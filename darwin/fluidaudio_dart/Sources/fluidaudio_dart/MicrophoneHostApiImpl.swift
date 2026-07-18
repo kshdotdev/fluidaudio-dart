@@ -120,7 +120,6 @@ final class MicCapture {
 
   private let engine = AVAudioEngine()
   private let queue = SerialTaskQueue()
-  private let converter = AudioConverter()
 
   /// Read on the real-time audio thread, written from the platform thread —
   /// must be lock-protected (plain Bool access across threads is a data race).
@@ -150,13 +149,21 @@ final class MicCapture {
     let fanout = AudioFanout(attachments: attachments, frames: frames, vadEvents: vadEvents)
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)
+    // One converter per session: resampler filter state must carry across
+    // buffers (a fresh converter per buffer causes boundary artifacts). Only
+    // touched from the serial queue.
+    guard let resampler = PersistentResampler(from: format) else {
+      throw PigeonError(
+        code: "ConverterUnavailable",
+        message: "Could not build a converter for the input format \(format)", details: nil)
+    }
 
     input.installTap(onBus: 0, bufferSize: 4096, format: format) { [weak self] buffer, _ in
       guard let self, self.running else { return }
       // Real-time audio thread: deep-copy only, then hop to the serial queue.
       guard let copy = Self.copyBuffer(buffer) else { return }
-      self.queue.enqueue { [converter = self.converter] in
-        guard let samples = try? converter.resampleBuffer(copy) else { return }
+      self.queue.enqueue {
+        guard let samples = resampler.resample(copy), !samples.isEmpty else { return }
         fanout.dispatch(samples)
       }
     }
