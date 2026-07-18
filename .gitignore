@@ -20,6 +20,7 @@ pubspec.lock
 DerivedData/
 
 # Misc
+.npm-cache/
 .DS_Store
 *.iml
 .idea/

@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: 3.44.0
+
+jobs:
+  analyze-and-test:
+    name: Analyze + Dart tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Pigeon drift check
+        run: |
+          dart run pigeon --input pigeons/fluidaudio.dart
+          git diff --exit-code -- lib/src/messages.g.dart darwin/fluidaudio_dart/Sources/fluidaudio_dart/Messages.g.swift
+      - run: flutter analyze
+      - run: flutter test
+
+  build-macos:
+    name: Build example (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build macos --debug
+        working-directory: example
+
+  build-ios:
+    name: Build example (iOS, no codesign)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter build ios --no-codesign --debug
+        working-directory: example
