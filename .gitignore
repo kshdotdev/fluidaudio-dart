@@ -1,0 +1,25 @@
+# Reference repos (vendored for study, each is its own git repo)
+references/
+
+# Dart/Flutter
+.dart_tool/
+.packages
+build/
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.fvm/
+
+# iOS/macOS
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+**/xcuserdata/
+*.xcworkspace/xcshareddata/swiftpm/Package.resolved
+.build/
+DerivedData/
+
+# Misc
+.DS_Store
+*.iml
+.idea/
