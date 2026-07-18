@@ -2835,6 +2835,122 @@ class MicrophoneHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol SystemAudioHostApi {
+  /// Whether process-tap capture is available (macOS 14.4+; always false on
+  /// iOS).
+  func isSupported(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Preflights the "System Audio Recording" permission by creating a
+  /// throwaway tap. Returns true when tapping is allowed; on first call the
+  /// OS shows the TCC prompt (there is no direct request API).
+  func requestPermission(completion: @escaping (Result<Bool, Error>) -> Void)
+  /// Starts capturing system audio — all processes except this one when
+  /// [processIds] is empty, otherwise only the given PIDs — and fans the
+  /// 16 kHz mono stream out natively to the given sessions, exactly like
+  /// [MicrophoneHostApi.start].
+  func start(processIds: [Int64], asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  func stop(completion: @escaping (Result<Void, Error>) -> Void)
+  func isRunning(completion: @escaping (Result<Bool, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class SystemAudioHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `SystemAudioHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: SystemAudioHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Whether process-tap capture is available (macOS 14.4+; always false on
+    /// iOS).
+    let isSupportedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.isSupported\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isSupportedChannel.setMessageHandler { _, reply in
+        api.isSupported { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isSupportedChannel.setMessageHandler(nil)
+    }
+    /// Preflights the "System Audio Recording" permission by creating a
+    /// throwaway tap. Returns true when tapping is allowed; on first call the
+    /// OS shows the TCC prompt (there is no direct request API).
+    let requestPermissionChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.requestPermission\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      requestPermissionChannel.setMessageHandler { _, reply in
+        api.requestPermission { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      requestPermissionChannel.setMessageHandler(nil)
+    }
+    /// Starts capturing system audio — all processes except this one when
+    /// [processIds] is empty, otherwise only the given PIDs — and fans the
+    /// 16 kHz mono stream out natively to the given sessions, exactly like
+    /// [MicrophoneHostApi.start].
+    let startChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.start\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      startChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let processIdsArg = args[0] as! [Int64]
+        let asrInstanceIdsArg = args[1] as! [Int64]
+        let eouInstanceIdsArg = args[2] as! [Int64]
+        let vadStreamIdsArg = args[3] as! [Int64]
+        let emitFramesArg = args[4] as! Bool
+        api.start(processIds: processIdsArg, asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      startChannel.setMessageHandler(nil)
+    }
+    let stopChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.stop\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      stopChannel.setMessageHandler { _, reply in
+        api.stop { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      stopChannel.setMessageHandler(nil)
+    }
+    let isRunningChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.isRunning\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      isRunningChannel.setMessageHandler { _, reply in
+        api.isRunning { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      isRunningChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
   private let wrapper: PigeonEventChannelWrapper<ReturnType>
@@ -2988,6 +3104,20 @@ class MicFramesStreamHandler: PigeonEventChannelWrapper<MicFrameMessage> {
                       instanceName: String = "",
                       streamHandler: MicFramesStreamHandler) {
     var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.micFrames"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<MicFrameMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class SystemAudioFramesStreamHandler: PigeonEventChannelWrapper<MicFrameMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: SystemAudioFramesStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.systemAudioFrames"
     if !instanceName.isEmpty {
       channelName += ".\(instanceName)"
     }

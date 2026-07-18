@@ -653,6 +653,43 @@ abstract class MicrophoneHostApi {
   bool isRunning();
 }
 
+// ---------------------------------------------------------------------------
+// M6: system-audio capture (macOS 14.4+ Core Audio process taps)
+// ---------------------------------------------------------------------------
+
+@HostApi()
+abstract class SystemAudioHostApi {
+  /// Whether process-tap capture is available (macOS 14.4+; always false on
+  /// iOS).
+  @async
+  bool isSupported();
+
+  /// Preflights the "System Audio Recording" permission by creating a
+  /// throwaway tap. Returns true when tapping is allowed; on first call the
+  /// OS shows the TCC prompt (there is no direct request API).
+  @async
+  bool requestPermission();
+
+  /// Starts capturing system audio — all processes except this one when
+  /// [processIds] is empty, otherwise only the given PIDs — and fans the
+  /// 16 kHz mono stream out natively to the given sessions, exactly like
+  /// [MicrophoneHostApi.start].
+  @async
+  void start(
+    List<int> processIds,
+    List<int> asrInstanceIds,
+    List<int> eouInstanceIds,
+    List<int> vadStreamIds,
+    bool emitFrames,
+  );
+
+  @async
+  void stop();
+
+  @async
+  bool isRunning();
+}
+
 @EventChannelApi()
 abstract class FluidAudioEventChannelApi {
   DebugEventMessage debugEvents();
@@ -663,4 +700,7 @@ abstract class FluidAudioEventChannelApi {
   EouEventMessage eouEvents();
   TtsChunkMessage ttsChunks();
   MicFrameMessage micFrames();
+
+  /// Captured system-audio frames (16 kHz mono), when frame emission is on.
+  MicFrameMessage systemAudioFrames();
 }

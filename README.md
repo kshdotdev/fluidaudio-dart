@@ -63,6 +63,11 @@ See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
 - [x] **M5** — native microphone capture (`FluidMicrophone`): AVAudioEngine →
       16 kHz mono → fanned out natively to streaming-ASR / EOU / VAD sessions;
       audio never crosses the platform channel
+- [x] **M6** — system-audio capture (`FluidSystemAudio`, macOS 14.4+): Core
+      Audio process taps capture other apps' audio (all, or specific PIDs) —
+      the "other participants" track of a meeting transcriber. Requires the
+      System Audio Recording permission (`NSAudioCaptureUsageDescription`)
+      and an unsandboxed app.
 
 ## CocoaPods note
 

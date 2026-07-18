@@ -15,13 +15,19 @@
 final class PluginRuntime {
   let registry: InstanceRegistry
   let microphone: MicrophoneHostApiImpl
+  let systemAudio: SystemAudioHostApiImpl
 
   private let lock = NSLock()
   private var didTeardown = false
 
-  init(registry: InstanceRegistry, microphone: MicrophoneHostApiImpl) {
+  init(
+    registry: InstanceRegistry,
+    microphone: MicrophoneHostApiImpl,
+    systemAudio: SystemAudioHostApiImpl
+  ) {
     self.registry = registry
     self.microphone = microphone
+    self.systemAudio = systemAudio
   }
 
   func teardown() {
@@ -31,6 +37,7 @@ final class PluginRuntime {
     lock.unlock()
     guard isFirstCall else { return }
     microphone.teardown()
+    systemAudio.teardown()
     registry.shutdownAll()
   }
 }
@@ -66,6 +73,7 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     let eouEvents = EouEventsHandler()
     let ttsChunks = TtsChunksHandler()
     let micFrames = MicFramesHandler()
+    let systemAudioFrames = SystemAudioFramesHandler()
 
     DebugEventsStreamHandler.register(with: messenger, streamHandler: debugEvents)
     TranscriptionUpdatesStreamHandler.register(with: messenger, streamHandler: transcriptionUpdates)
@@ -75,9 +83,12 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     EouEventsStreamHandler.register(with: messenger, streamHandler: eouEvents)
     TtsChunksStreamHandler.register(with: messenger, streamHandler: ttsChunks)
     MicFramesStreamHandler.register(with: messenger, streamHandler: micFrames)
+    SystemAudioFramesStreamHandler.register(with: messenger, streamHandler: systemAudioFrames)
 
     let microphone = MicrophoneHostApiImpl(
       registry: registry, frames: micFrames, vadEvents: vadEvents)
+    let systemAudio = SystemAudioHostApiImpl(
+      registry: registry, frames: systemAudioFrames, vadEvents: vadEvents)
 
     SystemHostApiSetup.setUp(
       binaryMessenger: messenger, api: SystemHostApiImpl(debugEvents: debugEvents))
@@ -110,8 +121,10 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
       api: TtsHostApiImpl(registry: registry, downloadProgress: downloadProgress, chunks: ttsChunks))
     AudioHostApiSetup.setUp(binaryMessenger: messenger, api: AudioHostApiImpl())
     MicrophoneHostApiSetup.setUp(binaryMessenger: messenger, api: microphone)
+    SystemAudioHostApiSetup.setUp(binaryMessenger: messenger, api: systemAudio)
 
-    let runtime = PluginRuntime(registry: registry, microphone: microphone)
+    let runtime = PluginRuntime(
+      registry: registry, microphone: microphone, systemAudio: systemAudio)
     let plugin = FluidaudioDartPlugin(runtime: runtime)
 
     #if os(iOS)

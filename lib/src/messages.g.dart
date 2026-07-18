@@ -2868,6 +2868,122 @@ class MicrophoneHostApi {
   }
 }
 
+class SystemAudioHostApi {
+  /// Constructor for [SystemAudioHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  SystemAudioHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Whether process-tap capture is available (macOS 14.4+; always false on
+  /// iOS).
+  Future<bool> isSupported() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.isSupported$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Preflights the "System Audio Recording" permission by creating a
+  /// throwaway tap. Returns true when tapping is allowed; on first call the
+  /// OS shows the TCC prompt (there is no direct request API).
+  Future<bool> requestPermission() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.requestPermission$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+
+  /// Starts capturing system audio — all processes except this one when
+  /// [processIds] is empty, otherwise only the given PIDs — and fans the
+  /// 16 kHz mono stream out natively to the given sessions, exactly like
+  /// [MicrophoneHostApi.start].
+  Future<void> start(List<int> processIds, List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.start$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[processIds, asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> stop() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.stop$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<bool> isRunning() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.isRunning$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as bool;
+  }
+}
+
 /// Returns a broadcast [Stream] of events from the `debugEvents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
@@ -3000,6 +3116,25 @@ Stream<MicFrameMessage> micFrames( {String instanceName = ''}) {
   final EventChannel micFramesChannel =
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.micFrames$instanceName', pigeonMethodCodec);
   return micFramesChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as MicFrameMessage;
+  });
+}
+    
+/// Captured system-audio frames (16 kHz mono), when frame emission is on.
+///
+/// Returns a broadcast [Stream] of events from the `systemAudioFrames` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<MicFrameMessage> systemAudioFrames( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel systemAudioFramesChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.systemAudioFrames$instanceName', pigeonMethodCodec);
+  return systemAudioFramesChannel.receiveBroadcastStream().map((dynamic event) {
     return event as MicFrameMessage;
   });
 }

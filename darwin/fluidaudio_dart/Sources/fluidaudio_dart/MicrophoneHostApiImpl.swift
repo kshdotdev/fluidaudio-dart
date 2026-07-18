@@ -34,8 +34,59 @@ final class SampleChunker {
   }
 }
 
+/// A frame sink for captured audio (mic or system) — UI level meters etc.
+protocol FrameEmitting: AnyObject {
+  func emit(samples: [Float])
+}
+
+/// Fans a 16 kHz mono capture stream out to attached sessions, strictly in
+/// order. Shared by microphone and system-audio capture.
+final class AudioFanout {
+  struct Attachments {
+    let asr: [StreamingAsrInstance]
+    let eou: [EouInstance]
+    let vad: [(id: Int64, instance: VadStreamInstance)]
+    let emitFrames: Bool
+  }
+
+  private let attachments: Attachments
+  private let chunkers: [SampleChunker]
+  private let frames: FrameEmitting
+  private let vadEvents: VadEventsHandler
+
+  init(attachments: Attachments, frames: FrameEmitting, vadEvents: VadEventsHandler) {
+    self.attachments = attachments
+    self.chunkers = attachments.vad.map { _ in SampleChunker(chunkSize: VadManager.chunkSize) }
+    self.frames = frames
+    self.vadEvents = vadEvents
+  }
+
+  /// Must be called from a single serial context to preserve feed order.
+  func dispatch(_ samples: [Float]) {
+    if attachments.emitFrames {
+      frames.emit(samples: samples)
+    }
+    if !attachments.asr.isEmpty || !attachments.eou.isEmpty {
+      guard let pcm = AudioBridge.pcmBuffer(from: samples) else { return }
+      for instance in attachments.asr {
+        let manager = instance.manager
+        instance.queue.enqueue { await manager.streamAudio(pcm) }
+      }
+      for instance in attachments.eou {
+        let manager = instance.manager
+        instance.queue.enqueue { _ = try? await manager.process(audioBuffer: pcm) }
+      }
+    }
+    for (index, attachment) in attachments.vad.enumerated() {
+      for chunk in chunkers[index].push(samples) {
+        attachment.instance.feedChunk(chunk, streamId: attachment.id, events: vadEvents)
+      }
+    }
+  }
+}
+
 /// Streams captured mic frames (16 kHz mono) for UI level meters/waveforms.
-final class MicFramesHandler: MicFramesStreamHandler {
+final class MicFramesHandler: MicFramesStreamHandler, FrameEmitting {
   private var sink: PigeonEventSink<MicFrameMessage>?
 
   override func onListen(withArguments arguments: Any?, sink: PigeonEventSink<MicFrameMessage>) {
@@ -65,12 +116,7 @@ final class MicFramesHandler: MicFramesStreamHandler {
 /// One live microphone capture: AVAudioEngine tap → resample to 16 kHz mono →
 /// fan out natively to attached sessions. Audio never crosses the channel.
 final class MicCapture {
-  struct Attachments {
-    let asr: [StreamingAsrInstance]
-    let eou: [EouInstance]
-    let vad: [(id: Int64, instance: VadStreamInstance)]
-    let emitFrames: Bool
-  }
+  typealias Attachments = AudioFanout.Attachments
 
   private let engine = AVAudioEngine()
   private let queue = SerialTaskQueue()
@@ -101,7 +147,7 @@ final class MicCapture {
       try session.setActive(true)
     #endif
 
-    let chunkers = attachments.vad.map { _ in SampleChunker(chunkSize: VadManager.chunkSize) }
+    let fanout = AudioFanout(attachments: attachments, frames: frames, vadEvents: vadEvents)
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)
 
@@ -111,25 +157,7 @@ final class MicCapture {
       guard let copy = Self.copyBuffer(buffer) else { return }
       self.queue.enqueue { [converter = self.converter] in
         guard let samples = try? converter.resampleBuffer(copy) else { return }
-        if attachments.emitFrames {
-          frames.emit(samples: samples)
-        }
-        if !attachments.asr.isEmpty || !attachments.eou.isEmpty {
-          guard let pcm = AudioBridge.pcmBuffer(from: samples) else { return }
-          for instance in attachments.asr {
-            let manager = instance.manager
-            instance.queue.enqueue { await manager.streamAudio(pcm) }
-          }
-          for instance in attachments.eou {
-            let manager = instance.manager
-            instance.queue.enqueue { _ = try? await manager.process(audioBuffer: pcm) }
-          }
-        }
-        for (index, attachment) in attachments.vad.enumerated() {
-          for chunk in chunkers[index].push(samples) {
-            attachment.instance.feedChunk(chunk, streamId: attachment.id, events: vadEvents)
-          }
-        }
+        fanout.dispatch(samples)
       }
     }
 

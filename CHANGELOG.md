@@ -2,6 +2,14 @@
 
 ## 0.1.0 (unreleased)
 
+- M6: system-audio capture (`FluidSystemAudio`, macOS 14.4+) via Core Audio
+  process taps — captures other applications' audio (global-except-self or
+  targeted PIDs), resampled natively to 16 kHz and fanned out to attached
+  sessions like the microphone; permission preflight for the System Audio
+  Recording TCC prompt; shared `AudioFanout` between mic and system capture.
+  The example's Live tab gains a Mic/System source toggle (example app is now
+  unsandboxed, as process taps require).
+
 - Stabilization pass (adversarial multi-agent review, 14 confirmed findings
   fixed): plugin teardown on engine detach/re-registration (stops live mic
   capture, releases all native instances); lock-protected mic running flag;

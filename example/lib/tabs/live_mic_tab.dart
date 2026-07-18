@@ -12,9 +12,13 @@ class LiveMicTab extends StatefulWidget {
   State<LiveMicTab> createState() => _LiveMicTabState();
 }
 
+enum _CaptureSource { microphone, systemAudio }
+
 class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMixin {
   final _microphone = FluidMicrophone();
+  final _systemAudio = FluidSystemAudio();
 
+  _CaptureSource _source = _CaptureSource.microphone;
   FluidStreamingAsr? _session;
   FluidVad? _vad;
   FluidVadStream? _vadStream;
@@ -39,6 +43,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
 
   Future<void> _teardown() async {
     await _microphone.stop();
+    await _systemAudio.stop();
     await _updatesSubscription?.cancel();
     await _vadSubscription?.cancel();
     await _vadStream?.dispose();
@@ -76,18 +81,36 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
         if (mounted) setState(() => _probability = event.probability);
       });
 
-      await session.start();
-      await _microphone.start(
-        transcribers: [session],
-        vadStreams: [vadStream],
-      );
+      if (_source == _CaptureSource.systemAudio) {
+        if (!await _systemAudio.isSupported) {
+          throw StateError('system-audio capture needs macOS 14.4+');
+        }
+        if (!await _systemAudio.requestPermission()) {
+          throw StateError(
+              'System Audio Recording permission missing — grant it in '
+              'System Settings > Privacy & Security, then retry');
+        }
+        await session.start(source: FluidAudioSource.system);
+        await _systemAudio.start(
+          transcribers: [session],
+          vadStreams: [vadStream],
+        );
+      } else {
+        await session.start();
+        await _microphone.start(
+          transcribers: [session],
+          vadStreams: [vadStream],
+        );
+      }
 
       _session = session;
       _vad = vad;
       _vadStream = vadStream;
       setState(() {
         _live = true;
-        _status = 'listening — speak!';
+        _status = _source == _CaptureSource.systemAudio
+            ? 'capturing system audio — play something!'
+            : 'listening — speak!';
       });
     } catch (error) {
       await _teardown();
@@ -104,6 +127,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
     });
     try {
       await _microphone.stop();
+      await _systemAudio.stop();
       final transcript = await _session?.finish();
       setState(() {
         _live = false;
@@ -136,6 +160,23 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
         children: [
           Row(
             children: [
+              SegmentedButton<_CaptureSource>(
+                segments: const [
+                  ButtonSegment(
+                      value: _CaptureSource.microphone,
+                      icon: Icon(Icons.mic),
+                      label: Text('Mic')),
+                  ButtonSegment(
+                      value: _CaptureSource.systemAudio,
+                      icon: Icon(Icons.speaker),
+                      label: Text('System')),
+                ],
+                selected: {_source},
+                onSelectionChanged: _live || _busy
+                    ? null
+                    : (selection) => setState(() => _source = selection.first),
+              ),
+              const SizedBox(width: 12),
               FilledButton.icon(
                 onPressed: _busy
                     ? null
@@ -143,7 +184,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
                         ? _stop
                         : _start,
                 icon: Icon(_live ? Icons.stop : Icons.mic),
-                label: Text(_live ? 'Stop' : 'Start live dictation'),
+                label: Text(_live ? 'Stop' : 'Start'),
               ),
               const SizedBox(width: 16),
               Expanded(child: LinearProgressIndicator(value: _probability)),

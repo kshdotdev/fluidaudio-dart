@@ -22,6 +22,7 @@ class FluidEventHub {
     Stream<messages.EouEventMessage>? eouEvents,
     Stream<messages.TtsChunkMessage>? ttsChunks,
     Stream<messages.MicFrameMessage>? micFrames,
+    Stream<messages.MicFrameMessage>? systemAudioFrames,
   }) {
     _transcriptionUpdates = transcriptionUpdates;
     _downloadProgress = downloadProgress;
@@ -30,6 +31,7 @@ class FluidEventHub {
     _eouEvents = eouEvents;
     _ttsChunks = ttsChunks;
     _micFrames = micFrames;
+    _systemAudioFrames = systemAudioFrames;
   }
 
   static final FluidEventHub instance = FluidEventHub._();
@@ -41,6 +43,7 @@ class FluidEventHub {
   Stream<messages.EouEventMessage>? _eouEvents;
   Stream<messages.TtsChunkMessage>? _ttsChunks;
   Stream<messages.MicFrameMessage>? _micFrames;
+  Stream<messages.MicFrameMessage>? _systemAudioFrames;
 
   int _nextToken = 1;
 
@@ -79,6 +82,9 @@ class FluidEventHub {
 
   Stream<messages.MicFrameMessage> get micFrames =>
       _micFrames ??= messages.micFrames().asBroadcastStream();
+
+  Stream<messages.MicFrameMessage> get systemAudioFrames =>
+      _systemAudioFrames ??= messages.systemAudioFrames().asBroadcastStream();
 
   /// Synthesis frames for one streaming-synthesis call.
   Stream<messages.TtsChunkMessage> ttsChunksFor(int streamToken) {
