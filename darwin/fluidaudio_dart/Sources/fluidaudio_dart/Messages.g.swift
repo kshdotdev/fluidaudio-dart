@@ -211,6 +211,13 @@ enum AudioSourceMessage: Int, CaseIterable {
   case system = 1
 }
 
+/// EOU model chunk sizes (latency/accuracy trade-off).
+enum EouChunkSizeMessage: Int, CaseIterable {
+  case ms160 = 0
+  case ms320 = 1
+  case ms1280 = 2
+}
+
 /// System information reported by the native FluidAudio runtime.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -719,6 +726,374 @@ struct StreamingConfigMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct DiarizationSegmentMessage: Hashable, CustomStringConvertible {
+  var speakerId: String
+  var startSeconds: Double
+  var endSeconds: Double
+  var qualityScore: Double
+  /// Speaker embedding as float32 bytes.
+  var embedding: FlutterStandardTypedData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DiarizationSegmentMessage? {
+    let speakerId = pigeonVar_list[0] as! String
+    let startSeconds = pigeonVar_list[1] as! Double
+    let endSeconds = pigeonVar_list[2] as! Double
+    let qualityScore = pigeonVar_list[3] as! Double
+    let embedding = pigeonVar_list[4] as! FlutterStandardTypedData
+
+    return DiarizationSegmentMessage(
+      speakerId: speakerId,
+      startSeconds: startSeconds,
+      endSeconds: endSeconds,
+      qualityScore: qualityScore,
+      embedding: embedding
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      speakerId,
+      startSeconds,
+      endSeconds,
+      qualityScore,
+      embedding,
+    ]
+  }
+  static func == (lhs: DiarizationSegmentMessage, rhs: DiarizationSegmentMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.speakerId, rhs.speakerId) && MessagesPigeonInternal.deepEquals(lhs.startSeconds, rhs.startSeconds) && MessagesPigeonInternal.deepEquals(lhs.endSeconds, rhs.endSeconds) && MessagesPigeonInternal.deepEquals(lhs.qualityScore, rhs.qualityScore) && MessagesPigeonInternal.deepEquals(lhs.embedding, rhs.embedding)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DiarizationSegmentMessage")
+    MessagesPigeonInternal.deepHash(value: speakerId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: startSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: endSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: qualityScore, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: embedding, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DiarizationSegmentMessage(speakerId: \(String(describing: speakerId)), startSeconds: \(String(describing: startSeconds)), endSeconds: \(String(describing: endSeconds)), qualityScore: \(String(describing: qualityScore)), embedding: \(String(describing: embedding)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct SpeakerEmbeddingMessage: Hashable, CustomStringConvertible {
+  var speakerId: String
+  /// Float32 bytes.
+  var embedding: FlutterStandardTypedData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> SpeakerEmbeddingMessage? {
+    let speakerId = pigeonVar_list[0] as! String
+    let embedding = pigeonVar_list[1] as! FlutterStandardTypedData
+
+    return SpeakerEmbeddingMessage(
+      speakerId: speakerId,
+      embedding: embedding
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      speakerId,
+      embedding,
+    ]
+  }
+  static func == (lhs: SpeakerEmbeddingMessage, rhs: SpeakerEmbeddingMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.speakerId, rhs.speakerId) && MessagesPigeonInternal.deepEquals(lhs.embedding, rhs.embedding)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("SpeakerEmbeddingMessage")
+    MessagesPigeonInternal.deepHash(value: speakerId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: embedding, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "SpeakerEmbeddingMessage(speakerId: \(String(describing: speakerId)), embedding: \(String(describing: embedding)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct ChunkEmbeddingMessage: Hashable, CustomStringConvertible {
+  var speakerId: String
+  var chunkIndex: Int64
+  var speakerIndex: Int64
+  var startSeconds: Double
+  var endSeconds: Double
+  /// L2-normalized embedding as float32 bytes.
+  var embedding256: FlutterStandardTypedData
+  /// PLDA-whitened vector as float64 bytes (empty when unavailable).
+  var rho128: FlutterStandardTypedData
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> ChunkEmbeddingMessage? {
+    let speakerId = pigeonVar_list[0] as! String
+    let chunkIndex = pigeonVar_list[1] as! Int64
+    let speakerIndex = pigeonVar_list[2] as! Int64
+    let startSeconds = pigeonVar_list[3] as! Double
+    let endSeconds = pigeonVar_list[4] as! Double
+    let embedding256 = pigeonVar_list[5] as! FlutterStandardTypedData
+    let rho128 = pigeonVar_list[6] as! FlutterStandardTypedData
+
+    return ChunkEmbeddingMessage(
+      speakerId: speakerId,
+      chunkIndex: chunkIndex,
+      speakerIndex: speakerIndex,
+      startSeconds: startSeconds,
+      endSeconds: endSeconds,
+      embedding256: embedding256,
+      rho128: rho128
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      speakerId,
+      chunkIndex,
+      speakerIndex,
+      startSeconds,
+      endSeconds,
+      embedding256,
+      rho128,
+    ]
+  }
+  static func == (lhs: ChunkEmbeddingMessage, rhs: ChunkEmbeddingMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.speakerId, rhs.speakerId) && MessagesPigeonInternal.deepEquals(lhs.chunkIndex, rhs.chunkIndex) && MessagesPigeonInternal.deepEquals(lhs.speakerIndex, rhs.speakerIndex) && MessagesPigeonInternal.deepEquals(lhs.startSeconds, rhs.startSeconds) && MessagesPigeonInternal.deepEquals(lhs.endSeconds, rhs.endSeconds) && MessagesPigeonInternal.deepEquals(lhs.embedding256, rhs.embedding256) && MessagesPigeonInternal.deepEquals(lhs.rho128, rhs.rho128)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("ChunkEmbeddingMessage")
+    MessagesPigeonInternal.deepHash(value: speakerId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: chunkIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: speakerIndex, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: startSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: endSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: embedding256, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: rho128, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "ChunkEmbeddingMessage(speakerId: \(String(describing: speakerId)), chunkIndex: \(String(describing: chunkIndex)), speakerIndex: \(String(describing: speakerIndex)), startSeconds: \(String(describing: startSeconds)), endSeconds: \(String(describing: endSeconds)), embedding256: \(String(describing: embedding256)), rho128: \(String(describing: rho128)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct DiarizationTimingsMessage: Hashable, CustomStringConvertible {
+  var segmentationSeconds: Double
+  var embeddingExtractionSeconds: Double
+  var speakerClusteringSeconds: Double
+  var postProcessingSeconds: Double
+  var totalInferenceSeconds: Double
+  var totalProcessingSeconds: Double
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DiarizationTimingsMessage? {
+    let segmentationSeconds = pigeonVar_list[0] as! Double
+    let embeddingExtractionSeconds = pigeonVar_list[1] as! Double
+    let speakerClusteringSeconds = pigeonVar_list[2] as! Double
+    let postProcessingSeconds = pigeonVar_list[3] as! Double
+    let totalInferenceSeconds = pigeonVar_list[4] as! Double
+    let totalProcessingSeconds = pigeonVar_list[5] as! Double
+
+    return DiarizationTimingsMessage(
+      segmentationSeconds: segmentationSeconds,
+      embeddingExtractionSeconds: embeddingExtractionSeconds,
+      speakerClusteringSeconds: speakerClusteringSeconds,
+      postProcessingSeconds: postProcessingSeconds,
+      totalInferenceSeconds: totalInferenceSeconds,
+      totalProcessingSeconds: totalProcessingSeconds
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      segmentationSeconds,
+      embeddingExtractionSeconds,
+      speakerClusteringSeconds,
+      postProcessingSeconds,
+      totalInferenceSeconds,
+      totalProcessingSeconds,
+    ]
+  }
+  static func == (lhs: DiarizationTimingsMessage, rhs: DiarizationTimingsMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.segmentationSeconds, rhs.segmentationSeconds) && MessagesPigeonInternal.deepEquals(lhs.embeddingExtractionSeconds, rhs.embeddingExtractionSeconds) && MessagesPigeonInternal.deepEquals(lhs.speakerClusteringSeconds, rhs.speakerClusteringSeconds) && MessagesPigeonInternal.deepEquals(lhs.postProcessingSeconds, rhs.postProcessingSeconds) && MessagesPigeonInternal.deepEquals(lhs.totalInferenceSeconds, rhs.totalInferenceSeconds) && MessagesPigeonInternal.deepEquals(lhs.totalProcessingSeconds, rhs.totalProcessingSeconds)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DiarizationTimingsMessage")
+    MessagesPigeonInternal.deepHash(value: segmentationSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: embeddingExtractionSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: speakerClusteringSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: postProcessingSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: totalInferenceSeconds, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: totalProcessingSeconds, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DiarizationTimingsMessage(segmentationSeconds: \(String(describing: segmentationSeconds)), embeddingExtractionSeconds: \(String(describing: embeddingExtractionSeconds)), speakerClusteringSeconds: \(String(describing: speakerClusteringSeconds)), postProcessingSeconds: \(String(describing: postProcessingSeconds)), totalInferenceSeconds: \(String(describing: totalInferenceSeconds)), totalProcessingSeconds: \(String(describing: totalProcessingSeconds)))"
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct DiarizationResultMessage: Hashable, CustomStringConvertible {
+  var segments: [DiarizationSegmentMessage]
+  var speakerDatabase: [SpeakerEmbeddingMessage]? = nil
+  var chunkEmbeddings: [ChunkEmbeddingMessage]? = nil
+  var timings: DiarizationTimingsMessage? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DiarizationResultMessage? {
+    let segments = pigeonVar_list[0] as! [DiarizationSegmentMessage]
+    let speakerDatabase: [SpeakerEmbeddingMessage]? = nilOrValue(pigeonVar_list[1])
+    let chunkEmbeddings: [ChunkEmbeddingMessage]? = nilOrValue(pigeonVar_list[2])
+    let timings: DiarizationTimingsMessage? = nilOrValue(pigeonVar_list[3])
+
+    return DiarizationResultMessage(
+      segments: segments,
+      speakerDatabase: speakerDatabase,
+      chunkEmbeddings: chunkEmbeddings,
+      timings: timings
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      segments,
+      speakerDatabase,
+      chunkEmbeddings,
+      timings,
+    ]
+  }
+  static func == (lhs: DiarizationResultMessage, rhs: DiarizationResultMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.segments, rhs.segments) && MessagesPigeonInternal.deepEquals(lhs.speakerDatabase, rhs.speakerDatabase) && MessagesPigeonInternal.deepEquals(lhs.chunkEmbeddings, rhs.chunkEmbeddings) && MessagesPigeonInternal.deepEquals(lhs.timings, rhs.timings)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DiarizationResultMessage")
+    MessagesPigeonInternal.deepHash(value: segments, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: speakerDatabase, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: chunkEmbeddings, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: timings, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DiarizationResultMessage(segments: \(String(describing: segments)), speakerDatabase: \(String(describing: speakerDatabase)), chunkEmbeddings: \(String(describing: chunkEmbeddings)), timings: \(String(describing: timings)))"
+  }
+}
+
+/// Per-chunk progress of a running diarization, tagged with the instance id.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct DiarizationProgressMessage: Hashable, CustomStringConvertible {
+  var instanceId: Int64
+  var processedChunks: Int64
+  var totalChunks: Int64
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> DiarizationProgressMessage? {
+    let instanceId = pigeonVar_list[0] as! Int64
+    let processedChunks = pigeonVar_list[1] as! Int64
+    let totalChunks = pigeonVar_list[2] as! Int64
+
+    return DiarizationProgressMessage(
+      instanceId: instanceId,
+      processedChunks: processedChunks,
+      totalChunks: totalChunks
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      instanceId,
+      processedChunks,
+      totalChunks,
+    ]
+  }
+  static func == (lhs: DiarizationProgressMessage, rhs: DiarizationProgressMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.processedChunks, rhs.processedChunks) && MessagesPigeonInternal.deepEquals(lhs.totalChunks, rhs.totalChunks)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("DiarizationProgressMessage")
+    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: processedChunks, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: totalChunks, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "DiarizationProgressMessage(instanceId: \(String(describing: instanceId)), processedChunks: \(String(describing: processedChunks)), totalChunks: \(String(describing: totalChunks)))"
+  }
+}
+
+/// EOU stream event: a partial transcript or a completed utterance.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct EouEventMessage: Hashable, CustomStringConvertible {
+  var instanceId: Int64
+  var isUtteranceEnd: Bool
+  var text: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> EouEventMessage? {
+    let instanceId = pigeonVar_list[0] as! Int64
+    let isUtteranceEnd = pigeonVar_list[1] as! Bool
+    let text = pigeonVar_list[2] as! String
+
+    return EouEventMessage(
+      instanceId: instanceId,
+      isUtteranceEnd: isUtteranceEnd,
+      text: text
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      instanceId,
+      isUtteranceEnd,
+      text,
+    ]
+  }
+  static func == (lhs: EouEventMessage, rhs: EouEventMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.instanceId, rhs.instanceId) && MessagesPigeonInternal.deepEquals(lhs.isUtteranceEnd, rhs.isUtteranceEnd) && MessagesPigeonInternal.deepEquals(lhs.text, rhs.text)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("EouEventMessage")
+    MessagesPigeonInternal.deepHash(value: instanceId, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: isUtteranceEnd, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: text, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "EouEventMessage(instanceId: \(String(describing: instanceId)), isUtteranceEnd: \(String(describing: isUtteranceEnd)), text: \(String(describing: text)))"
+  }
+}
+
 private class MessagesPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -747,23 +1122,43 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 133:
-      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return EouChunkSizeMessage(rawValue: enumResultAsInt)
+      }
+      return nil
     case 134:
-      return DebugEventMessage.fromList(self.readValue() as! [Any?])
+      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
     case 135:
-      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
+      return DebugEventMessage.fromList(self.readValue() as! [Any?])
     case 136:
-      return AsrResultMessage.fromList(self.readValue() as! [Any?])
+      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
     case 137:
-      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
+      return AsrResultMessage.fromList(self.readValue() as! [Any?])
     case 138:
-      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
+      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
     case 139:
-      return VadResultMessage.fromList(self.readValue() as! [Any?])
+      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
     case 140:
-      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
+      return VadResultMessage.fromList(self.readValue() as! [Any?])
     case 141:
+      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
+    case 142:
       return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
+    case 143:
+      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
+    case 144:
+      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
+    case 145:
+      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
+    case 146:
+      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
+    case 147:
+      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
+    case 148:
+      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
+    case 149:
+      return EouEventMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -784,32 +1179,56 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? AudioSourceMessage {
       super.writeByte(132)
       super.writeValue(value.rawValue)
-    } else if let value = value as? SystemInfoMessage {
+    } else if let value = value as? EouChunkSizeMessage {
       super.writeByte(133)
-      super.writeValue(value.toList())
-    } else if let value = value as? DebugEventMessage {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? SystemInfoMessage {
       super.writeByte(134)
       super.writeValue(value.toList())
-    } else if let value = value as? TokenTimingMessage {
+    } else if let value = value as? DebugEventMessage {
       super.writeByte(135)
       super.writeValue(value.toList())
-    } else if let value = value as? AsrResultMessage {
+    } else if let value = value as? TokenTimingMessage {
       super.writeByte(136)
       super.writeValue(value.toList())
-    } else if let value = value as? TranscriptionUpdateMessage {
+    } else if let value = value as? AsrResultMessage {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? DownloadProgressMessage {
+    } else if let value = value as? TranscriptionUpdateMessage {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? VadResultMessage {
+    } else if let value = value as? DownloadProgressMessage {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? VadStreamEventMessage {
+    } else if let value = value as? VadResultMessage {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? StreamingConfigMessage {
+    } else if let value = value as? VadStreamEventMessage {
       super.writeByte(141)
+      super.writeValue(value.toList())
+    } else if let value = value as? StreamingConfigMessage {
+      super.writeByte(142)
+      super.writeValue(value.toList())
+    } else if let value = value as? DiarizationSegmentMessage {
+      super.writeByte(143)
+      super.writeValue(value.toList())
+    } else if let value = value as? SpeakerEmbeddingMessage {
+      super.writeByte(144)
+      super.writeValue(value.toList())
+    } else if let value = value as? ChunkEmbeddingMessage {
+      super.writeByte(145)
+      super.writeValue(value.toList())
+    } else if let value = value as? DiarizationTimingsMessage {
+      super.writeByte(146)
+      super.writeValue(value.toList())
+    } else if let value = value as? DiarizationResultMessage {
+      super.writeByte(147)
+      super.writeValue(value.toList())
+    } else if let value = value as? DiarizationProgressMessage {
+      super.writeByte(148)
+      super.writeValue(value.toList())
+    } else if let value = value as? EouEventMessage {
+      super.writeByte(149)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1397,6 +1816,220 @@ class VadHostApiSetup {
     }
   }
 }
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol DiarizerHostApi {
+  /// Loads diarizer models (progress tagged with [progressToken]); returns an
+  /// instance id. Speaker-count knobs mirror FluidAudio's clustering config.
+  func create(clusteringThreshold: Double, numSpeakers: Int64?, minSpeakers: Int64?, maxSpeakers: Int64?, exposeChunkEmbeddings: Bool, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
+  /// `diarizationProgress` stream tagged with the instance id.
+  func diarizeSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
+  func diarizeFile(instanceId: Int64, path: String, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class DiarizerHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `DiarizerHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: DiarizerHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Loads diarizer models (progress tagged with [progressToken]); returns an
+    /// instance id. Speaker-count knobs mirror FluidAudio's clustering config.
+    let createChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.create\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      createChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let clusteringThresholdArg = args[0] as! Double
+        let numSpeakersArg: Int64? = nilOrValue(args[1])
+        let minSpeakersArg: Int64? = nilOrValue(args[2])
+        let maxSpeakersArg: Int64? = nilOrValue(args[3])
+        let exposeChunkEmbeddingsArg = args[4] as! Bool
+        let progressTokenArg = args[5] as! Int64
+        api.create(clusteringThreshold: clusteringThresholdArg, numSpeakers: numSpeakersArg, minSpeakers: minSpeakersArg, maxSpeakers: maxSpeakersArg, exposeChunkEmbeddings: exposeChunkEmbeddingsArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      createChannel.setMessageHandler(nil)
+    }
+    /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
+    /// `diarizationProgress` stream tagged with the instance id.
+    let diarizeSamplesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeSamples\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      diarizeSamplesChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32SamplesArg = args[1] as! FlutterStandardTypedData
+        api.diarizeSamples(instanceId: instanceIdArg, float32Samples: float32SamplesArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      diarizeSamplesChannel.setMessageHandler(nil)
+    }
+    let diarizeFileChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeFile\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      diarizeFileChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let pathArg = args[1] as! String
+        api.diarizeFile(instanceId: instanceIdArg, path: pathArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      diarizeFileChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
+/// Generated protocol from Pigeon that represents a handler of messages from Flutter.
+protocol EouHostApi {
+  /// Creates an end-of-utterance streaming session (models load/download
+  /// first; progress tagged with [progressToken]). Partial transcripts and
+  /// utterance-end events arrive on `eouEvents` tagged with the returned id.
+  func create(chunkSize: EouChunkSizeMessage, eouDebounceMs: Int64, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// Feeds 16 kHz mono float32 samples; processed strictly in call order.
+  func feed(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Flushes and returns the final transcript.
+  func finish(instanceId: Int64, completion: @escaping (Result<String, Error>) -> Void)
+  func reset(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+}
+
+/// Generated setup class from Pigeon to handle messages through the `binaryMessenger`.
+class EouHostApiSetup {
+  static var codec: FlutterStandardMessageCodec { MessagesPigeonCodec.shared }
+  /// Sets up an instance of `EouHostApi` to handle messages through the `binaryMessenger`.
+  static func setUp(binaryMessenger: FlutterBinaryMessenger, api: EouHostApi?, messageChannelSuffix: String = "") {
+    let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Creates an end-of-utterance streaming session (models load/download
+    /// first; progress tagged with [progressToken]). Partial transcripts and
+    /// utterance-end events arrive on `eouEvents` tagged with the returned id.
+    let createChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.EouHostApi.create\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      createChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let chunkSizeArg = args[0] as! EouChunkSizeMessage
+        let eouDebounceMsArg = args[1] as! Int64
+        let progressTokenArg = args[2] as! Int64
+        api.create(chunkSize: chunkSizeArg, eouDebounceMs: eouDebounceMsArg, progressToken: progressTokenArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      createChannel.setMessageHandler(nil)
+    }
+    /// Feeds 16 kHz mono float32 samples; processed strictly in call order.
+    let feedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.EouHostApi.feed\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      feedChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let float32SamplesArg = args[1] as! FlutterStandardTypedData
+        api.feed(instanceId: instanceIdArg, float32Samples: float32SamplesArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      feedChannel.setMessageHandler(nil)
+    }
+    /// Flushes and returns the final transcript.
+    let finishChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.EouHostApi.finish\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      finishChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.finish(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      finishChannel.setMessageHandler(nil)
+    }
+    let resetChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.EouHostApi.reset\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      resetChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.reset(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      resetChannel.setMessageHandler(nil)
+    }
+    let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.EouHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      disposeChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        api.dispose(instanceId: instanceIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      disposeChannel.setMessageHandler(nil)
+    }
+  }
+}
 
 private class PigeonStreamHandler<ReturnType>: NSObject, FlutterStreamHandler {
   private let wrapper: PigeonEventChannelWrapper<ReturnType>
@@ -1498,6 +2131,34 @@ class VadEventsStreamHandler: PigeonEventChannelWrapper<VadStreamEventMessage> {
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<VadStreamEventMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class DiarizationProgressStreamHandler: PigeonEventChannelWrapper<DiarizationProgressMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: DiarizationProgressStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.diarizationProgress"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<DiarizationProgressMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class EouEventsStreamHandler: PigeonEventChannelWrapper<EouEventMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: EouEventsStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.eouEvents"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<EouEventMessage>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

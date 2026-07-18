@@ -2,6 +2,11 @@
 
 ## 0.1.0 (unreleased)
 
+- M2: offline speaker diarization (`FluidDiarizer` — segments with raw
+  speaker embeddings, speaker database, chunk embeddings, pipeline timings,
+  per-chunk progress stream) and end-of-utterance turn detection (`FluidEou`
+  with partial/utterance streams).
+
 - M1: batch ASR (`FluidAsr` — Parakeet v2/v3, token timings, stateless
   one-shots), sliding-window streaming ASR (`FluidStreamingAsr` with
   volatile/confirmed update stream and strict feed ordering), VAD (`FluidVad`

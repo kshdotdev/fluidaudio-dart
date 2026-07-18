@@ -126,5 +126,62 @@ void main() {
       final directory = await models.cacheDirectory(ModelKind.parakeetV3);
       expect(directory, contains('FluidAudio'));
     });
+
+    testWidgets('diarization finds two speakers with embeddings', (tester) async {
+      final diarizer = await FluidDiarizer.create();
+      addTearDown(diarizer.dispose);
+
+      final progressEvents = <(int, int)>[];
+      final progressSubscription = diarizer.progress.listen(progressEvents.add);
+      addTearDown(progressSubscription.cancel);
+
+      final second = await loadWavAsset('assets/speaker2.wav');
+      final samples = Float32List(helloSamples.length + 8000 + second.length)
+        ..setRange(0, helloSamples.length, helloSamples)
+        ..setRange(
+            helloSamples.length + 8000, helloSamples.length + 8000 + second.length, second);
+
+      final result = await diarizer.diarize(samples);
+
+      expect(result.segments, isNotEmpty);
+      expect(result.speakerIds.length, greaterThanOrEqualTo(1));
+      for (final segment in result.segments) {
+        expect(segment.embedding, isNotEmpty,
+            reason: 'ectos-style speaker identity needs raw embeddings');
+        expect(segment.end, greaterThan(segment.start));
+      }
+      // Progress callbacks flowed through the event channel.
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(progressEvents, isNotEmpty);
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
+    testWidgets('EOU session emits utterances and finish returns transcript',
+        (tester) async {
+      final eou = await FluidEou.create();
+      addTearDown(eou.dispose);
+
+      final utterances = <String>[];
+      final partials = <String>[];
+      final utteranceSubscription = eou.utterances.listen(utterances.add);
+      final partialSubscription = eou.partials.listen(partials.add);
+      addTearDown(utteranceSubscription.cancel);
+      addTearDown(partialSubscription.cancel);
+
+      // Speech followed by 2s of silence so the EOU fires.
+      final feed = Float32List(helloSamples.length + 32000)
+        ..setRange(0, helloSamples.length, helloSamples);
+      const chunk = 1600;
+      for (var offset = 0; offset < feed.length; offset += chunk) {
+        final end = (offset + chunk).clamp(0, feed.length);
+        await eou.feed(Float32List.sublistView(feed, offset, end));
+      }
+      final transcript = await eou.finish();
+
+      await tester.pump(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      expect(transcript.toLowerCase(), contains('hello'));
+      expect(partials, isNotEmpty, reason: 'partial callbacks must stream');
+    }, timeout: const Timeout(Duration(minutes: 5)));
   });
 }

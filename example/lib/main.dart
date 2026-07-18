@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'tabs/diarizer_tab.dart';
 import 'tabs/models_tab.dart';
 import 'tabs/streaming_tab.dart';
 import 'tabs/system_tab.dart';
@@ -29,7 +30,7 @@ class _Home extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 6,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('fluidaudio_dart'),
@@ -41,6 +42,7 @@ class _Home extends StatelessWidget {
               Tab(text: 'Transcribe'),
               Tab(text: 'Streaming'),
               Tab(text: 'VAD'),
+              Tab(text: 'Diarize'),
             ],
           ),
         ),
@@ -51,6 +53,7 @@ class _Home extends StatelessWidget {
             TranscribeTab(),
             StreamingTab(),
             VadTab(),
+            DiarizerTab(),
           ],
         ),
       ),

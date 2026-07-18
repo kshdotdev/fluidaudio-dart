@@ -4,10 +4,10 @@ Flutter bindings for [FluidAudio](https://github.com/FluidInference/FluidAudio) 
 on-device speech-to-text, voice activity detection, speaker diarization and
 text-to-speech on Apple platforms, powered by CoreML and the Apple Neural Engine.
 
-> **Status: early development (M1).** Batch + streaming speech-to-text, VAD,
-> and model management are implemented and verified end-to-end against real
-> models. Diarization, EOU, Qwen3, CTC vocabulary, ITN and TTS land next
-> (see the roadmap below).
+> **Status: early development (M2).** Batch + streaming speech-to-text, VAD,
+> speaker diarization (with embeddings), end-of-utterance turn detection, and
+> model management are implemented and verified end-to-end against real
+> models. Qwen3, CTC vocabulary, ITN and TTS land next (see the roadmap below).
 
 ```dart
 import 'package:fluidaudio_dart/fluidaudio_dart.dart';
@@ -51,7 +51,7 @@ See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
       round-trip, event channel, typed-data audio convention, CI
 - [x] **M1** — batch ASR (Parakeet v2/v3, token timings), model management with
       download progress, sliding-window streaming ASR, VAD (batch + streaming)
-- [ ] **M2** — offline speaker diarization (with embeddings), end-of-utterance
+- [x] **M2** — offline speaker diarization (with embeddings), end-of-utterance
       turn detection
 - [ ] **M3** — Qwen3 multilingual ASR (batch + streaming), CTC custom
       vocabulary, inverse text normalization

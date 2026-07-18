@@ -124,6 +124,13 @@ enum AudioSourceMessage {
   system,
 }
 
+/// EOU model chunk sizes (latency/accuracy trade-off).
+enum EouChunkSizeMessage {
+  ms160,
+  ms320,
+  ms1280,
+}
+
 /// System information reported by the native FluidAudio runtime.
 class SystemInfoMessage {
   SystemInfoMessage({
@@ -717,6 +724,442 @@ class StreamingConfigMessage {
   }
 }
 
+class DiarizationSegmentMessage {
+  DiarizationSegmentMessage({
+    required this.speakerId,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.qualityScore,
+    required this.embedding,
+  });
+
+  String speakerId;
+
+  double startSeconds;
+
+  double endSeconds;
+
+  double qualityScore;
+
+  /// Speaker embedding as float32 bytes.
+  Uint8List embedding;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      speakerId,
+      startSeconds,
+      endSeconds,
+      qualityScore,
+      embedding,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DiarizationSegmentMessage decode(Object result) {
+    result as List<Object?>;
+    return DiarizationSegmentMessage(
+      speakerId: result[0]! as String,
+      startSeconds: result[1]! as double,
+      endSeconds: result[2]! as double,
+      qualityScore: result[3]! as double,
+      embedding: result[4]! as Uint8List,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiarizationSegmentMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(speakerId, other.speakerId) && _deepEquals(startSeconds, other.startSeconds) && _deepEquals(endSeconds, other.endSeconds) && _deepEquals(qualityScore, other.qualityScore) && _deepEquals(embedding, other.embedding);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DiarizationSegmentMessage(speakerId: $speakerId, startSeconds: $startSeconds, endSeconds: $endSeconds, qualityScore: $qualityScore, embedding: $embedding)';
+  }
+}
+
+class SpeakerEmbeddingMessage {
+  SpeakerEmbeddingMessage({
+    required this.speakerId,
+    required this.embedding,
+  });
+
+  String speakerId;
+
+  /// Float32 bytes.
+  Uint8List embedding;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      speakerId,
+      embedding,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static SpeakerEmbeddingMessage decode(Object result) {
+    result as List<Object?>;
+    return SpeakerEmbeddingMessage(
+      speakerId: result[0]! as String,
+      embedding: result[1]! as Uint8List,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! SpeakerEmbeddingMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(speakerId, other.speakerId) && _deepEquals(embedding, other.embedding);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'SpeakerEmbeddingMessage(speakerId: $speakerId, embedding: $embedding)';
+  }
+}
+
+class ChunkEmbeddingMessage {
+  ChunkEmbeddingMessage({
+    required this.speakerId,
+    required this.chunkIndex,
+    required this.speakerIndex,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.embedding256,
+    required this.rho128,
+  });
+
+  String speakerId;
+
+  int chunkIndex;
+
+  int speakerIndex;
+
+  double startSeconds;
+
+  double endSeconds;
+
+  /// L2-normalized embedding as float32 bytes.
+  Uint8List embedding256;
+
+  /// PLDA-whitened vector as float64 bytes (empty when unavailable).
+  Uint8List rho128;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      speakerId,
+      chunkIndex,
+      speakerIndex,
+      startSeconds,
+      endSeconds,
+      embedding256,
+      rho128,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ChunkEmbeddingMessage decode(Object result) {
+    result as List<Object?>;
+    return ChunkEmbeddingMessage(
+      speakerId: result[0]! as String,
+      chunkIndex: result[1]! as int,
+      speakerIndex: result[2]! as int,
+      startSeconds: result[3]! as double,
+      endSeconds: result[4]! as double,
+      embedding256: result[5]! as Uint8List,
+      rho128: result[6]! as Uint8List,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ChunkEmbeddingMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(speakerId, other.speakerId) && _deepEquals(chunkIndex, other.chunkIndex) && _deepEquals(speakerIndex, other.speakerIndex) && _deepEquals(startSeconds, other.startSeconds) && _deepEquals(endSeconds, other.endSeconds) && _deepEquals(embedding256, other.embedding256) && _deepEquals(rho128, other.rho128);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ChunkEmbeddingMessage(speakerId: $speakerId, chunkIndex: $chunkIndex, speakerIndex: $speakerIndex, startSeconds: $startSeconds, endSeconds: $endSeconds, embedding256: $embedding256, rho128: $rho128)';
+  }
+}
+
+class DiarizationTimingsMessage {
+  DiarizationTimingsMessage({
+    required this.segmentationSeconds,
+    required this.embeddingExtractionSeconds,
+    required this.speakerClusteringSeconds,
+    required this.postProcessingSeconds,
+    required this.totalInferenceSeconds,
+    required this.totalProcessingSeconds,
+  });
+
+  double segmentationSeconds;
+
+  double embeddingExtractionSeconds;
+
+  double speakerClusteringSeconds;
+
+  double postProcessingSeconds;
+
+  double totalInferenceSeconds;
+
+  double totalProcessingSeconds;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      segmentationSeconds,
+      embeddingExtractionSeconds,
+      speakerClusteringSeconds,
+      postProcessingSeconds,
+      totalInferenceSeconds,
+      totalProcessingSeconds,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DiarizationTimingsMessage decode(Object result) {
+    result as List<Object?>;
+    return DiarizationTimingsMessage(
+      segmentationSeconds: result[0]! as double,
+      embeddingExtractionSeconds: result[1]! as double,
+      speakerClusteringSeconds: result[2]! as double,
+      postProcessingSeconds: result[3]! as double,
+      totalInferenceSeconds: result[4]! as double,
+      totalProcessingSeconds: result[5]! as double,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiarizationTimingsMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(segmentationSeconds, other.segmentationSeconds) && _deepEquals(embeddingExtractionSeconds, other.embeddingExtractionSeconds) && _deepEquals(speakerClusteringSeconds, other.speakerClusteringSeconds) && _deepEquals(postProcessingSeconds, other.postProcessingSeconds) && _deepEquals(totalInferenceSeconds, other.totalInferenceSeconds) && _deepEquals(totalProcessingSeconds, other.totalProcessingSeconds);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DiarizationTimingsMessage(segmentationSeconds: $segmentationSeconds, embeddingExtractionSeconds: $embeddingExtractionSeconds, speakerClusteringSeconds: $speakerClusteringSeconds, postProcessingSeconds: $postProcessingSeconds, totalInferenceSeconds: $totalInferenceSeconds, totalProcessingSeconds: $totalProcessingSeconds)';
+  }
+}
+
+class DiarizationResultMessage {
+  DiarizationResultMessage({
+    required this.segments,
+    this.speakerDatabase,
+    this.chunkEmbeddings,
+    this.timings,
+  });
+
+  List<DiarizationSegmentMessage> segments;
+
+  List<SpeakerEmbeddingMessage>? speakerDatabase;
+
+  List<ChunkEmbeddingMessage>? chunkEmbeddings;
+
+  DiarizationTimingsMessage? timings;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      segments,
+      speakerDatabase,
+      chunkEmbeddings,
+      timings,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DiarizationResultMessage decode(Object result) {
+    result as List<Object?>;
+    return DiarizationResultMessage(
+      segments: (result[0]! as List<Object?>).cast<DiarizationSegmentMessage>(),
+      speakerDatabase: (result[1] as List<Object?>?)?.cast<SpeakerEmbeddingMessage>(),
+      chunkEmbeddings: (result[2] as List<Object?>?)?.cast<ChunkEmbeddingMessage>(),
+      timings: result[3] as DiarizationTimingsMessage?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiarizationResultMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(segments, other.segments) && _deepEquals(speakerDatabase, other.speakerDatabase) && _deepEquals(chunkEmbeddings, other.chunkEmbeddings) && _deepEquals(timings, other.timings);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DiarizationResultMessage(segments: $segments, speakerDatabase: $speakerDatabase, chunkEmbeddings: $chunkEmbeddings, timings: $timings)';
+  }
+}
+
+/// Per-chunk progress of a running diarization, tagged with the instance id.
+class DiarizationProgressMessage {
+  DiarizationProgressMessage({
+    required this.instanceId,
+    required this.processedChunks,
+    required this.totalChunks,
+  });
+
+  int instanceId;
+
+  int processedChunks;
+
+  int totalChunks;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      instanceId,
+      processedChunks,
+      totalChunks,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static DiarizationProgressMessage decode(Object result) {
+    result as List<Object?>;
+    return DiarizationProgressMessage(
+      instanceId: result[0]! as int,
+      processedChunks: result[1]! as int,
+      totalChunks: result[2]! as int,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! DiarizationProgressMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(instanceId, other.instanceId) && _deepEquals(processedChunks, other.processedChunks) && _deepEquals(totalChunks, other.totalChunks);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'DiarizationProgressMessage(instanceId: $instanceId, processedChunks: $processedChunks, totalChunks: $totalChunks)';
+  }
+}
+
+/// EOU stream event: a partial transcript or a completed utterance.
+class EouEventMessage {
+  EouEventMessage({
+    required this.instanceId,
+    required this.isUtteranceEnd,
+    required this.text,
+  });
+
+  int instanceId;
+
+  bool isUtteranceEnd;
+
+  String text;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      instanceId,
+      isUtteranceEnd,
+      text,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static EouEventMessage decode(Object result) {
+    result as List<Object?>;
+    return EouEventMessage(
+      instanceId: result[0]! as int,
+      isUtteranceEnd: result[1]! as bool,
+      text: result[2]! as String,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! EouEventMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(instanceId, other.instanceId) && _deepEquals(isUtteranceEnd, other.isUtteranceEnd) && _deepEquals(text, other.text);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'EouEventMessage(instanceId: $instanceId, isUtteranceEnd: $isUtteranceEnd, text: $text)';
+  }
+}
+
 
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
@@ -737,32 +1180,56 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is AudioSourceMessage) {
       buffer.putUint8(132);
       writeValue(buffer, value.index);
-    }    else if (value is SystemInfoMessage) {
+    }    else if (value is EouChunkSizeMessage) {
       buffer.putUint8(133);
-      writeValue(buffer, value.encode());
-    }    else if (value is DebugEventMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is SystemInfoMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.encode());
-    }    else if (value is TokenTimingMessage) {
+    }    else if (value is DebugEventMessage) {
       buffer.putUint8(135);
       writeValue(buffer, value.encode());
-    }    else if (value is AsrResultMessage) {
+    }    else if (value is TokenTimingMessage) {
       buffer.putUint8(136);
       writeValue(buffer, value.encode());
-    }    else if (value is TranscriptionUpdateMessage) {
+    }    else if (value is AsrResultMessage) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is DownloadProgressMessage) {
+    }    else if (value is TranscriptionUpdateMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is VadResultMessage) {
+    }    else if (value is DownloadProgressMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is VadStreamEventMessage) {
+    }    else if (value is VadResultMessage) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is StreamingConfigMessage) {
+    }    else if (value is VadStreamEventMessage) {
       buffer.putUint8(141);
+      writeValue(buffer, value.encode());
+    }    else if (value is StreamingConfigMessage) {
+      buffer.putUint8(142);
+      writeValue(buffer, value.encode());
+    }    else if (value is DiarizationSegmentMessage) {
+      buffer.putUint8(143);
+      writeValue(buffer, value.encode());
+    }    else if (value is SpeakerEmbeddingMessage) {
+      buffer.putUint8(144);
+      writeValue(buffer, value.encode());
+    }    else if (value is ChunkEmbeddingMessage) {
+      buffer.putUint8(145);
+      writeValue(buffer, value.encode());
+    }    else if (value is DiarizationTimingsMessage) {
+      buffer.putUint8(146);
+      writeValue(buffer, value.encode());
+    }    else if (value is DiarizationResultMessage) {
+      buffer.putUint8(147);
+      writeValue(buffer, value.encode());
+    }    else if (value is DiarizationProgressMessage) {
+      buffer.putUint8(148);
+      writeValue(buffer, value.encode());
+    }    else if (value is EouEventMessage) {
+      buffer.putUint8(149);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -785,23 +1252,40 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : AudioSourceMessage.values[value];
       case 133:
-        return SystemInfoMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : EouChunkSizeMessage.values[value];
       case 134:
-        return DebugEventMessage.decode(readValue(buffer)!);
+        return SystemInfoMessage.decode(readValue(buffer)!);
       case 135:
-        return TokenTimingMessage.decode(readValue(buffer)!);
+        return DebugEventMessage.decode(readValue(buffer)!);
       case 136:
-        return AsrResultMessage.decode(readValue(buffer)!);
+        return TokenTimingMessage.decode(readValue(buffer)!);
       case 137:
-        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
+        return AsrResultMessage.decode(readValue(buffer)!);
       case 138:
-        return DownloadProgressMessage.decode(readValue(buffer)!);
+        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
       case 139:
-        return VadResultMessage.decode(readValue(buffer)!);
+        return DownloadProgressMessage.decode(readValue(buffer)!);
       case 140:
-        return VadStreamEventMessage.decode(readValue(buffer)!);
+        return VadResultMessage.decode(readValue(buffer)!);
       case 141:
+        return VadStreamEventMessage.decode(readValue(buffer)!);
+      case 142:
         return StreamingConfigMessage.decode(readValue(buffer)!);
+      case 143:
+        return DiarizationSegmentMessage.decode(readValue(buffer)!);
+      case 144:
+        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
+      case 145:
+        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
+      case 146:
+        return DiarizationTimingsMessage.decode(readValue(buffer)!);
+      case 147:
+        return DiarizationResultMessage.decode(readValue(buffer)!);
+      case 148:
+        return DiarizationProgressMessage.decode(readValue(buffer)!);
+      case 149:
+        return EouEventMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -1362,6 +1846,210 @@ class VadHostApi {
   }
 }
 
+class DiarizerHostApi {
+  /// Constructor for [DiarizerHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  DiarizerHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Loads diarizer models (progress tagged with [progressToken]); returns an
+  /// instance id. Speaker-count knobs mirror FluidAudio's clustering config.
+  Future<int> create(double clusteringThreshold, int? numSpeakers, int? minSpeakers, int? maxSpeakers, bool exposeChunkEmbeddings, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.create$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[clusteringThreshold, numSpeakers, minSpeakers, maxSpeakers, exposeChunkEmbeddings, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
+  /// `diarizationProgress` stream tagged with the instance id.
+  Future<DiarizationResultMessage> diarizeSamples(int instanceId, Uint8List float32Samples) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeSamples$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as DiarizationResultMessage;
+  }
+
+  Future<DiarizationResultMessage> diarizeFile(int instanceId, String path) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeFile$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, path]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as DiarizationResultMessage;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
+class EouHostApi {
+  /// Constructor for [EouHostApi]. The [binaryMessenger] named argument is
+  /// available for dependency injection. If it is left null, the default
+  /// BinaryMessenger will be used which routes to the host platform.
+  EouHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+      : pigeonVar_binaryMessenger = binaryMessenger,
+        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  final BinaryMessenger? pigeonVar_binaryMessenger;
+
+  static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
+
+  final String pigeonVar_messageChannelSuffix;
+
+  /// Creates an end-of-utterance streaming session (models load/download
+  /// first; progress tagged with [progressToken]). Partial transcripts and
+  /// utterance-end events arrive on `eouEvents` tagged with the returned id.
+  Future<int> create(EouChunkSizeMessage chunkSize, int eouDebounceMs, int progressToken) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.EouHostApi.create$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[chunkSize, eouDebounceMs, progressToken]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as int;
+  }
+
+  /// Feeds 16 kHz mono float32 samples; processed strictly in call order.
+  Future<void> feed(int instanceId, Uint8List float32Samples) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.EouHostApi.feed$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Flushes and returns the final transcript.
+  Future<String> finish(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.EouHostApi.finish$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<void> reset(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.EouHostApi.reset$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> dispose(int instanceId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.EouHostApi.dispose$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+}
+
 /// Returns a broadcast [Stream] of events from the `debugEvents` event channel.
 ///
 /// Each call to this method creates a new [EventChannel], so it should
@@ -1427,6 +2115,40 @@ Stream<VadStreamEventMessage> vadEvents( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.vadEvents$instanceName', pigeonMethodCodec);
   return vadEventsChannel.receiveBroadcastStream().map((dynamic event) {
     return event as VadStreamEventMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `diarizationProgress` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<DiarizationProgressMessage> diarizationProgress( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel diarizationProgressChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.diarizationProgress$instanceName', pigeonMethodCodec);
+  return diarizationProgressChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as DiarizationProgressMessage;
+  });
+}
+    
+/// Returns a broadcast [Stream] of events from the `eouEvents` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<EouEventMessage> eouEvents( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel eouEventsChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.eouEvents$instanceName', pigeonMethodCodec);
+  return eouEventsChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as EouEventMessage;
   });
 }
     

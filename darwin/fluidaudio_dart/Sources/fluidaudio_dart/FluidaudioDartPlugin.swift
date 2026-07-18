@@ -20,11 +20,15 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     let transcriptionUpdates = TranscriptionUpdatesHandler()
     let downloadProgress = DownloadProgressHandler()
     let vadEvents = VadEventsHandler()
+    let diarizationProgress = DiarizationProgressHandler()
+    let eouEvents = EouEventsHandler()
 
     DebugEventsStreamHandler.register(with: messenger, streamHandler: debugEvents)
     TranscriptionUpdatesStreamHandler.register(with: messenger, streamHandler: transcriptionUpdates)
     DownloadProgressStreamHandler.register(with: messenger, streamHandler: downloadProgress)
     VadEventsStreamHandler.register(with: messenger, streamHandler: vadEvents)
+    DiarizationProgressStreamHandler.register(with: messenger, streamHandler: diarizationProgress)
+    EouEventsStreamHandler.register(with: messenger, streamHandler: eouEvents)
 
     SystemHostApiSetup.setUp(
       binaryMessenger: messenger, api: SystemHostApiImpl(debugEvents: debugEvents))
@@ -40,5 +44,13 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     VadHostApiSetup.setUp(
       binaryMessenger: messenger,
       api: VadHostApiImpl(registry: registry, downloadProgress: downloadProgress, events: vadEvents))
+    DiarizerHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: DiarizerHostApiImpl(
+        registry: registry, downloadProgress: downloadProgress,
+        diarizationProgress: diarizationProgress))
+    EouHostApiSetup.setUp(
+      binaryMessenger: messenger,
+      api: EouHostApiImpl(registry: registry, downloadProgress: downloadProgress, events: eouEvents))
   }
 }

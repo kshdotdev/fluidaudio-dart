@@ -291,10 +291,177 @@ abstract class VadHostApi {
   void dispose(int instanceId);
 }
 
+// ---------------------------------------------------------------------------
+// M2: offline diarization, EOU turn detection
+// ---------------------------------------------------------------------------
+
+/// EOU model chunk sizes (latency/accuracy trade-off).
+enum EouChunkSizeMessage { ms160, ms320, ms1280 }
+
+class DiarizationSegmentMessage {
+  DiarizationSegmentMessage({
+    required this.speakerId,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.qualityScore,
+    required this.embedding,
+  });
+
+  String speakerId;
+  double startSeconds;
+  double endSeconds;
+  double qualityScore;
+
+  /// Speaker embedding as float32 bytes.
+  Uint8List embedding;
+}
+
+class SpeakerEmbeddingMessage {
+  SpeakerEmbeddingMessage({required this.speakerId, required this.embedding});
+
+  String speakerId;
+
+  /// Float32 bytes.
+  Uint8List embedding;
+}
+
+class ChunkEmbeddingMessage {
+  ChunkEmbeddingMessage({
+    required this.speakerId,
+    required this.chunkIndex,
+    required this.speakerIndex,
+    required this.startSeconds,
+    required this.endSeconds,
+    required this.embedding256,
+    required this.rho128,
+  });
+
+  String speakerId;
+  int chunkIndex;
+  int speakerIndex;
+  double startSeconds;
+  double endSeconds;
+
+  /// L2-normalized embedding as float32 bytes.
+  Uint8List embedding256;
+
+  /// PLDA-whitened vector as float64 bytes (empty when unavailable).
+  Uint8List rho128;
+}
+
+class DiarizationTimingsMessage {
+  DiarizationTimingsMessage({
+    required this.segmentationSeconds,
+    required this.embeddingExtractionSeconds,
+    required this.speakerClusteringSeconds,
+    required this.postProcessingSeconds,
+    required this.totalInferenceSeconds,
+    required this.totalProcessingSeconds,
+  });
+
+  double segmentationSeconds;
+  double embeddingExtractionSeconds;
+  double speakerClusteringSeconds;
+  double postProcessingSeconds;
+  double totalInferenceSeconds;
+  double totalProcessingSeconds;
+}
+
+class DiarizationResultMessage {
+  DiarizationResultMessage({
+    required this.segments,
+    this.speakerDatabase,
+    this.chunkEmbeddings,
+    this.timings,
+  });
+
+  List<DiarizationSegmentMessage> segments;
+  List<SpeakerEmbeddingMessage>? speakerDatabase;
+  List<ChunkEmbeddingMessage>? chunkEmbeddings;
+  DiarizationTimingsMessage? timings;
+}
+
+/// Per-chunk progress of a running diarization, tagged with the instance id.
+class DiarizationProgressMessage {
+  DiarizationProgressMessage({
+    required this.instanceId,
+    required this.processedChunks,
+    required this.totalChunks,
+  });
+
+  int instanceId;
+  int processedChunks;
+  int totalChunks;
+}
+
+/// EOU stream event: a partial transcript or a completed utterance.
+class EouEventMessage {
+  EouEventMessage({
+    required this.instanceId,
+    required this.isUtteranceEnd,
+    required this.text,
+  });
+
+  int instanceId;
+  bool isUtteranceEnd;
+  String text;
+}
+
+@HostApi()
+abstract class DiarizerHostApi {
+  /// Loads diarizer models (progress tagged with [progressToken]); returns an
+  /// instance id. Speaker-count knobs mirror FluidAudio's clustering config.
+  @async
+  int create(
+    double clusteringThreshold,
+    int? numSpeakers,
+    int? minSpeakers,
+    int? maxSpeakers,
+    bool exposeChunkEmbeddings,
+    int progressToken,
+  );
+
+  /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
+  /// `diarizationProgress` stream tagged with the instance id.
+  @async
+  DiarizationResultMessage diarizeSamples(int instanceId, Uint8List float32Samples);
+
+  @async
+  DiarizationResultMessage diarizeFile(int instanceId, String path);
+
+  @async
+  void dispose(int instanceId);
+}
+
+@HostApi()
+abstract class EouHostApi {
+  /// Creates an end-of-utterance streaming session (models load/download
+  /// first; progress tagged with [progressToken]). Partial transcripts and
+  /// utterance-end events arrive on `eouEvents` tagged with the returned id.
+  @async
+  int create(EouChunkSizeMessage chunkSize, int eouDebounceMs, int progressToken);
+
+  /// Feeds 16 kHz mono float32 samples; processed strictly in call order.
+  @async
+  void feed(int instanceId, Uint8List float32Samples);
+
+  /// Flushes and returns the final transcript.
+  @async
+  String finish(int instanceId);
+
+  @async
+  void reset(int instanceId);
+
+  @async
+  void dispose(int instanceId);
+}
+
 @EventChannelApi()
 abstract class FluidAudioEventChannelApi {
   DebugEventMessage debugEvents();
   TranscriptionUpdateMessage transcriptionUpdates();
   DownloadProgressMessage downloadProgress();
   VadStreamEventMessage vadEvents();
+  DiarizationProgressMessage diarizationProgress();
+  EouEventMessage eouEvents();
 }

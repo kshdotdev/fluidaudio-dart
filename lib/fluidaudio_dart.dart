@@ -4,6 +4,15 @@
 library;
 
 export 'src/asr.dart' show FluidAsr;
+export 'src/diarizer.dart'
+    show
+        FluidChunkEmbedding,
+        FluidDiarizationResult,
+        FluidDiarizationSegment,
+        FluidDiarizationTimings,
+        FluidDiarizer,
+        FluidSpeakerEmbedding;
+export 'src/eou.dart' show EouChunkSize, FluidEou;
 export 'src/events.dart' show FluidDownloadProgressFailure;
 export 'src/exceptions.dart'
     show FluidAudioException, FluidDownloadException, FluidInstanceGoneException;

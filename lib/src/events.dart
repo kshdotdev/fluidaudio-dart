@@ -18,10 +18,14 @@ class FluidEventHub {
     Stream<messages.TranscriptionUpdateMessage>? transcriptionUpdates,
     Stream<messages.DownloadProgressMessage>? downloadProgress,
     Stream<messages.VadStreamEventMessage>? vadEvents,
+    Stream<messages.DiarizationProgressMessage>? diarizationProgress,
+    Stream<messages.EouEventMessage>? eouEvents,
   }) {
     _transcriptionUpdates = transcriptionUpdates;
     _downloadProgress = downloadProgress;
     _vadEvents = vadEvents;
+    _diarizationProgress = diarizationProgress;
+    _eouEvents = eouEvents;
   }
 
   static final FluidEventHub instance = FluidEventHub._();
@@ -29,6 +33,8 @@ class FluidEventHub {
   Stream<messages.TranscriptionUpdateMessage>? _transcriptionUpdates;
   Stream<messages.DownloadProgressMessage>? _downloadProgress;
   Stream<messages.VadStreamEventMessage>? _vadEvents;
+  Stream<messages.DiarizationProgressMessage>? _diarizationProgress;
+  Stream<messages.EouEventMessage>? _eouEvents;
 
   int _nextToken = 1;
 
@@ -43,6 +49,24 @@ class FluidEventHub {
 
   Stream<messages.VadStreamEventMessage> get vadEvents =>
       _vadEvents ??= messages.vadEvents().asBroadcastStream();
+
+  Stream<messages.DiarizationProgressMessage> get diarizationProgress =>
+      _diarizationProgress ??= messages.diarizationProgress().asBroadcastStream();
+
+  Stream<messages.EouEventMessage> get eouEvents =>
+      _eouEvents ??= messages.eouEvents().asBroadcastStream();
+
+  /// Per-chunk progress of one diarizer instance's running calls.
+  Stream<(int, int)> diarizationProgressFor(int instanceId) {
+    return diarizationProgress
+        .where((event) => event.instanceId == instanceId)
+        .map((event) => (event.processedChunks, event.totalChunks));
+  }
+
+  /// Partial/utterance events for one EOU session.
+  Stream<messages.EouEventMessage> eouEventsFor(int instanceId) {
+    return eouEvents.where((event) => event.instanceId == instanceId);
+  }
 
   /// Updates for one streaming-ASR session.
   Stream<FluidTranscriptionUpdate> updatesFor(int instanceId) {
