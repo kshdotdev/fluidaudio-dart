@@ -6,12 +6,18 @@
   import FlutterMacOS
 #endif
 
-/// Everything one plugin registration owns, with a teardown path for engine
-/// detach / re-registration (no dispose calls arrive from Dart in either
-/// case — without this, a live mic capture would outlive the engine).
+/// Everything one plugin registration owns, with an idempotent teardown for
+/// engine death (no dispose calls arrive from Dart in that case — without
+/// this, a live mic capture would outlive the engine).
+///
+/// Strictly per-registration: multiple Flutter engines in one process
+/// (FlutterEngineGroup, add-to-app) each get an independent runtime.
 final class PluginRuntime {
   let registry: InstanceRegistry
   let microphone: MicrophoneHostApiImpl
+
+  private let lock = NSLock()
+  private var didTeardown = false
 
   init(registry: InstanceRegistry, microphone: MicrophoneHostApiImpl) {
     self.registry = registry
@@ -19,18 +25,28 @@ final class PluginRuntime {
   }
 
   func teardown() {
+    lock.lock()
+    let isFirstCall = !didTeardown
+    didTeardown = true
+    lock.unlock()
+    guard isFirstCall else { return }
     microphone.teardown()
     registry.shutdownAll()
   }
 }
 
 public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
-  private static var activeRuntime: PluginRuntime?
-
   private let runtime: PluginRuntime
 
   init(runtime: PluginRuntime) {
     self.runtime = runtime
+  }
+
+  deinit {
+    // macOS path: the registrar retains this instance for the engine's
+    // lifetime (via addMethodCallDelegate); engine death releases it and
+    // teardown runs here. On iOS this is a backstop after detachFromEngine.
+    runtime.teardown()
   }
 
   public static func register(with registrar: FlutterPluginRegistrar) {
@@ -39,9 +55,6 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     #elseif os(macOS)
       let messenger = registrar.messenger
     #endif
-
-    // A stale runtime from a previous engine must not keep the mic hot.
-    activeRuntime?.teardown()
 
     let registry = InstanceRegistry()
 
@@ -99,21 +112,28 @@ public class FluidaudioDartPlugin: NSObject, FlutterPlugin {
     MicrophoneHostApiSetup.setUp(binaryMessenger: messenger, api: microphone)
 
     let runtime = PluginRuntime(registry: registry, microphone: microphone)
-    activeRuntime = runtime
+    let plugin = FluidaudioDartPlugin(runtime: runtime)
 
     #if os(iOS)
       // Publish the instance so detachFromEngine(for:) fires on engine death.
-      let plugin = FluidaudioDartPlugin(runtime: runtime)
       registrar.publish(plugin)
+    #elseif os(macOS)
+      // No detach callback exists on macOS; instead let the registrar retain
+      // the instance for the engine's lifetime so deinit runs teardown when
+      // the engine is destroyed.
+      let lifetimeChannel = FlutterMethodChannel(
+        name: "fluidaudio_dart/lifetime", binaryMessenger: messenger)
+      registrar.addMethodCallDelegate(plugin, channel: lifetimeChannel)
     #endif
+  }
+
+  public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+    result(FlutterMethodNotImplemented)
   }
 
   #if os(iOS)
     public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
       runtime.teardown()
-      if FluidaudioDartPlugin.activeRuntime === runtime {
-        FluidaudioDartPlugin.activeRuntime = nil
-      }
     }
   #endif
 }
