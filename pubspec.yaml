@@ -5,6 +5,13 @@ description: >-
   (CoreML / Apple Neural Engine).
 version: 0.1.0
 homepage: https://github.com/kshdotdev/fluidaudio-dart
+repository: https://github.com/kshdotdev/fluidaudio-dart
+topics:
+  - speech-to-text
+  - text-to-speech
+  - speech-recognition
+  - voice-activity-detection
+  - diarization
 
 environment:
   sdk: ^3.12.0
