@@ -1,6 +1,6 @@
 # fluidaudio_dart — Architecture
 
-Current state of the implementation (see `docs/design/2026-07-18-fluidaudio-dart-design.md`
+Current state of the implementation (see `doc/design/2026-07-18-fluidaudio-dart-design.md`
 for the original design and rationale).
 
 ## Layers

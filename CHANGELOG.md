@@ -9,7 +9,7 @@
   (shutdown-safe) flushes pre-rebuild dispatches before stats reset; mic
   watchdog no longer emits stale health after stop; example resets its
   watchdog line per session; phase-mapping tests cover silent/failed.
-  Added `docs/ARCHITECTURE.md` and a weekly upstream-watch workflow that
+  Added `doc/ARCHITECTURE.md` and a weekly upstream-watch workflow that
   opens an issue when FluidAudio releases outside the pinned minor.
 
 - Capture watchdog: `FluidMicrophone.health` / `FluidSystemAudio.health`

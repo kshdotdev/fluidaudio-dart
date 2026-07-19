@@ -4,12 +4,13 @@ Flutter bindings for [FluidAudio](https://github.com/FluidInference/FluidAudio) 
 on-device speech-to-text, voice activity detection, speaker diarization and
 text-to-speech on Apple platforms, powered by CoreML and the Apple Neural Engine.
 
-> **Status: feature-complete against FluidAudio 0.15.x (M4).** Batch +
-> streaming speech-to-text, VAD, speaker diarization (with embeddings),
-> end-of-utterance turn detection, custom-vocabulary boosting, inverse text
-> normalization, text-to-speech (Kokoro + PocketTTS incl. streaming and voice
-> cloning), audio conversion, and model management — all verified end-to-end
-> against real CoreML models. API may still change before 1.0.
+> **Status: feature-complete against FluidAudio 0.15.x.** Batch + streaming
+> speech-to-text, VAD, speaker diarization (with embeddings), end-of-utterance
+> turn detection, custom-vocabulary boosting, inverse text normalization,
+> text-to-speech (Kokoro + PocketTTS incl. streaming and voice cloning), audio
+> conversion, model management, and native microphone / system-audio capture
+> with watchdog health — all verified end-to-end against real CoreML models.
+> API may still change before 1.0.
 
 ```dart
 import 'package:fluidaudio_dart/fluidaudio_dart.dart';
@@ -25,6 +26,51 @@ await session.start();
 await FluidMicrophone().start(transcribers: [session]); // native capture
 // ... later:
 final transcript = await session.finish();
+```
+
+## Recipes
+
+```dart
+// Voice activity detection — batch and streaming
+final vad = await FluidVad.create();
+final results = await vad.process(samples);            // per-4096-sample chunks
+final stream = await vad.stream(minSilenceDuration: 0.3);
+stream.events.listen((e) { /* e.probability, e.isSpeechStart, e.isSpeechEnd */ });
+
+// Speaker diarization with raw embeddings (cross-recording identity)
+final diarizer = await FluidDiarizer.create(maxSpeakers: 4);
+final result = await diarizer.diarizeFile('/path/to/meeting.wav');
+for (final s in result.segments) {
+  print('${s.speakerId} ${s.start}–${s.end}  embedding=${s.embedding.length}d');
+}
+
+// End-of-utterance turn detection (live)
+final eou = await FluidEou.create();
+eou.partials.listen((text) => print('… $text'));
+eou.utterances.listen((text) => print('turn ended: $text'));
+await FluidMicrophone().start(turnDetectors: [eou]);
+
+// Boost domain terms during streaming transcription
+final vocab = await FluidCtcVocabulary.load(
+    terms: const [FluidVocabularyTerm('FluidAudio'), FluidVocabularyTerm('Kauan')]);
+final session = await FluidStreamingAsr.create();
+await session.configureVocabulary(vocab); // before start()
+
+// Inverse text normalization
+final itn = FluidItn();
+print(await itn.normalizeSentence('pay twenty five dollars')); // "pay $25"
+
+// Text-to-speech
+final tts = await FluidKokoroTts.create();
+final speech = await tts.synthesizeDetailed('Hello from Flutter.');
+// speech.wav is a playable WAV; speech.samples raw 24 kHz PCM
+
+// System audio (macOS 14.4+): transcribe what other apps are playing
+final system = FluidSystemAudio();
+if (await system.isSupported && await system.requestPermission()) {
+  system.health.listen((h) => print('capture: ${h.phase.name}'));
+  await system.start(transcribers: [session]);
+}
 ```
 
 ## Requirements
@@ -45,25 +91,27 @@ channel layer; event channels stream transcription updates, VAD events, and
 download progress back to Dart. Audio crosses the channel as 16 kHz mono
 float32 (`Float32List` in Dart).
 
-See `docs/design/2026-07-18-fluidaudio-dart-design.md` for the full design.
+See `doc/ARCHITECTURE.md` for the full reference (channel conventions,
+load-bearing invariants, verification map) and
+`doc/design/2026-07-18-fluidaudio-dart-design.md` for the original design.
 
 ## Roadmap
 
-- [x] **M0** — plugin scaffold, shared darwin source (SPM + podspec), pigeon
+- ✅ **M0** — plugin scaffold, shared darwin source (SPM + podspec), pigeon
       round-trip, event channel, typed-data audio convention, CI
-- [x] **M1** — batch ASR (Parakeet v2/v3, token timings), model management with
+- ✅ **M1** — batch ASR (Parakeet v2/v3, token timings), model management with
       download progress, sliding-window streaming ASR, VAD (batch + streaming)
-- [x] **M2** — offline speaker diarization (with embeddings), end-of-utterance
+- ✅ **M2** — offline speaker diarization (with embeddings), end-of-utterance
       turn detection
-- [x] **M3** — CTC custom vocabulary boosting, inverse text normalization.
+- ✅ **M3** — CTC custom vocabulary boosting, inverse text normalization.
       (Qwen3 multilingual ASR was planned here but the upstream FluidAudio
       0.15.x removed it; it will be bound if it returns upstream.)
-- [x] **M4** — TTS (Kokoro, PocketTTS incl. streaming + voice cloning), audio
+- ✅ **M4** — TTS (Kokoro, PocketTTS incl. streaming + voice cloning), audio
       conversion utilities
-- [x] **M5** — native microphone capture (`FluidMicrophone`): AVAudioEngine →
+- ✅ **M5** — native microphone capture (`FluidMicrophone`): AVAudioEngine →
       16 kHz mono → fanned out natively to streaming-ASR / EOU / VAD sessions;
       audio never crosses the platform channel
-- [x] **M6** — system-audio capture (`FluidSystemAudio`, macOS 14.4+): Core
+- ✅ **M6** — system-audio capture (`FluidSystemAudio`, macOS 14.4+): Core
       Audio process taps capture other apps' audio (all, or specific PIDs) —
       the "other participants" track of a meeting transcriber. Requires the
       System Audio Recording permission (`NSAudioCaptureUsageDescription`)
