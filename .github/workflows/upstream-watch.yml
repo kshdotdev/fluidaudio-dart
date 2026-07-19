@@ -1,0 +1,40 @@
+name: Upstream watch
+
+# Weekly check: FluidAudio releases outside our `.upToNextMinor(from: 0.15.x)`
+# range need a manual evaluation (API drift — e.g. Qwen3 was removed in 0.15).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 8 * * 1'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-fluidaudio-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare latest release against the pinned minor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest=$(gh api repos/FluidInference/FluidAudio/releases/latest --jq .tag_name)
+          pinned_minor=$(grep -o 'upToNextMinor(from: "[0-9.]*"' darwin/fluidaudio_dart/Package.swift \
+            | grep -o '[0-9]*\.[0-9]*' | head -1)
+          latest_minor=$(echo "${latest#v}" | grep -o '^[0-9]*\.[0-9]*')
+          echo "latest=$latest pinned_minor=$pinned_minor latest_minor=$latest_minor"
+          if [ "$latest_minor" = "$pinned_minor" ]; then
+            echo "Within the pinned minor — nothing to do."
+            exit 0
+          fi
+          title="FluidAudio $latest released — outside the pinned $pinned_minor.x range"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq length)
+          if [ "$existing" = "0" ]; then
+            gh issue create --title "$title" --body \
+              "Upstream FluidAudio released \`$latest\`, which our \`.upToNextMinor(from:)\` pin will not pick up. Evaluate API drift (managers added/removed, signature changes) and bump \`darwin/fluidaudio_dart/Package.swift\` + re-run the real-model integration lane."
+          else
+            echo "Issue already open."
+          fi

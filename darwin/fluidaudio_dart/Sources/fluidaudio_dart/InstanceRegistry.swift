@@ -84,6 +84,10 @@ final class InstanceRegistry {
 final class SerialTaskQueue {
   private let continuation: AsyncStream<@Sendable () async -> Void>.Continuation
   private let task: Task<Void, Never>
+  private let shutdownFlag = NSLock()
+  private var isShutdown = false
+  private var pendingDrains: [Int: CheckedContinuation<Void, Never>] = [:]
+  private var nextDrainId = 0
 
   init() {
     var streamContinuation: AsyncStream<@Sendable () async -> Void>.Continuation!
@@ -100,8 +104,49 @@ final class SerialTaskQueue {
     continuation.yield(operation)
   }
 
+  /// Completes once every operation enqueued before this call has run.
+  /// Resolves immediately when the queue is (or becomes) shut down — pending
+  /// drains are resumed by `shutdown()`, never stranded.
+  func drain() async {
+    await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+      registerDrain(done)
+    }
+  }
+
+  private func registerDrain(_ done: CheckedContinuation<Void, Never>) {
+    shutdownFlag.lock()
+    if isShutdown {
+      shutdownFlag.unlock()
+      done.resume()
+      return
+    }
+    let id = nextDrainId
+    nextDrainId += 1
+    pendingDrains[id] = done
+    shutdownFlag.unlock()
+    enqueue { [weak self] in
+      guard let self else { return }
+      self.resolveDrain(id)
+    }
+  }
+
+  private func resolveDrain(_ id: Int) {
+    shutdownFlag.lock()
+    let pending = pendingDrains.removeValue(forKey: id)
+    shutdownFlag.unlock()
+    pending?.resume()
+  }
+
   func shutdown() {
+    shutdownFlag.lock()
+    isShutdown = true
+    let stranded = pendingDrains
+    pendingDrains.removeAll()
+    shutdownFlag.unlock()
     continuation.finish()
     task.cancel()
+    for (_, pending) in stranded {
+      pending.resume()
+    }
   }
 }

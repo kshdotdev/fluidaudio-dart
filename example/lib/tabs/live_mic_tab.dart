@@ -61,6 +61,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
     setState(() {
       _busy = true;
       _status = 'loading models…';
+      _health = '';
       _confirmed = '';
       _volatile = '';
     });
@@ -147,6 +148,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       setState(() {
         _live = false;
         _status = 'stopped';
+        _health = '';
         if (transcript != null && transcript.isNotEmpty) {
           _confirmed = transcript;
           _volatile = '';

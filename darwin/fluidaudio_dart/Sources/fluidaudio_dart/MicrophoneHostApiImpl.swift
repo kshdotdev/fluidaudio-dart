@@ -232,6 +232,9 @@ final class MicCapture {
       try? await Task.sleep(nanoseconds: 2_000_000_000)
       guard let self, self.running else { return }
       let snapshot = fanout.snapshot
+      // Re-check after the snapshot read: a concurrent stop() between the
+      // guard above and here must not produce a stale health emission.
+      guard self.running else { return }
       if snapshot.nonZeroFrames > 0 {
         health.emit(
           source: .microphone, phase: .healthy, callbackCount: snapshot.callbacks,

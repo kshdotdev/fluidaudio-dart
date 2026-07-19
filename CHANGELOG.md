@@ -2,6 +2,16 @@
 
 ## 0.1.0 (unreleased)
 
+- Watchdog review fixes (6 confirmed findings): all system-tap chain
+  lifecycle mutations now serialize under a lifecycle lock — a concurrent
+  `stop()` during the watchdog rebuild could double-destroy Core Audio
+  objects or leak a freshly rebuilt live tap; `SerialTaskQueue.drain()`
+  (shutdown-safe) flushes pre-rebuild dispatches before stats reset; mic
+  watchdog no longer emits stale health after stop; example resets its
+  watchdog line per session; phase-mapping tests cover silent/failed.
+  Added `docs/ARCHITECTURE.md` and a weekly upstream-watch workflow that
+  opens an issue when FluidAudio releases outside the pinned minor.
+
 - Capture watchdog: `FluidMicrophone.health` / `FluidSystemAudio.health`
   streams report phase transitions after start (validating → healthy /
   silent / rebuilding / failed). The system tap self-tests for ~2 s and

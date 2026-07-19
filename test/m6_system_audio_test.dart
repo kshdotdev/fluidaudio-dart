@@ -161,10 +161,29 @@ void main() {
           receivingAudio: true));
     await Future<void>.delayed(Duration.zero);
 
-    expect(systemEvents, hasLength(2));
+    rawHealth
+      ..add(messages.CaptureHealthMessage(
+          source: messages.CaptureSourceMessage.systemAudio,
+          phase: messages.CaptureHealthPhaseMessage.silent,
+          callbackCount: 40,
+          receivingAudio: false))
+      ..add(messages.CaptureHealthMessage(
+          source: messages.CaptureSourceMessage.systemAudio,
+          phase: messages.CaptureHealthPhaseMessage.failed,
+          callbackCount: 0,
+          receivingAudio: false,
+          detail: 'chain dead'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(systemEvents, hasLength(4));
     expect(systemEvents[0].phase, CaptureHealthPhase.validating);
+    expect(systemEvents[0].detail, isNull);
     expect(systemEvents[1].phase, CaptureHealthPhase.rebuilding);
     expect(systemEvents[1].detail, contains('zero frames'));
+    expect(systemEvents[2].phase, CaptureHealthPhase.silent);
+    expect(systemEvents[2].callbackCount, 40);
+    expect(systemEvents[3].phase, CaptureHealthPhase.failed);
+    expect(systemEvents[3].detail, 'chain dead');
     expect(micEvents, hasLength(1));
     expect(micEvents.single.phase, CaptureHealthPhase.healthy);
     expect(micEvents.single.receivingAudio, isTrue);

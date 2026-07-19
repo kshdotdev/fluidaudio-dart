@@ -49,6 +49,13 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
     private let runningState = OSAllocatedUnfairLock(initialState: false)
     private var watchdogTask: Task<Void, Never>?
 
+    /// Serializes every chain lifecycle mutation (tapID/aggregateID/ioProcID,
+    /// start/teardown): the watchdog rebuild runs on a background Task while
+    /// stop() arrives on the platform thread — unsynchronized they could
+    /// double-destroy CoreAudio objects or leak a freshly rebuilt live tap.
+    /// Never held across an await; the IOProc block never takes it.
+    private let lifecycleLock = NSLock()
+
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
     private var ioProcID: AudioDeviceIOProcID?
@@ -62,7 +69,9 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
     }
 
     func start(processIds: [Int64], fanout: AudioFanout, health: CaptureHealthHandler) throws {
-      try startChain(processIds: processIds, fanout: fanout)
+      lifecycleLock.lock()
+      defer { lifecycleLock.unlock() }
+      try startChainLocked(processIds: processIds, fanout: fanout)
       runningState.withLock { $0 = true }
 
       // Self-test (ectos pattern): if the first window shows no real audio,
@@ -71,58 +80,123 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       health.emit(
         source: .systemAudio, phase: .validating, callbackCount: 0, receivingAudio: false)
       watchdogTask = Task { [weak self] in
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
-        guard let self, self.running else { return }
-        var snapshot = fanout.snapshot
-        if snapshot.nonZeroFrames > 0 {
-          health.emit(
-            source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
-            receivingAudio: true)
-          return
-        }
-
-        health.emit(
-          source: .systemAudio, phase: .rebuilding, callbackCount: snapshot.callbacks,
-          receivingAudio: false,
-          detail: snapshot.callbacks == 0
-            ? "no tap callbacks in 2s" : "tap delivers only zero frames")
-        self.teardownChain()
-        fanout.resetStats()
-        do {
-          try self.startChain(processIds: processIds, fanout: fanout)
-        } catch {
-          health.emit(
-            source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
-            detail: "rebuild failed: \(error.localizedDescription)")
-          self.stop()
-          return
-        }
-
-        try? await Task.sleep(nanoseconds: 2_000_000_000)
-        guard self.running else { return }
-        snapshot = fanout.snapshot
-        if snapshot.nonZeroFrames > 0 {
-          health.emit(
-            source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
-            receivingAudio: true)
-        } else if snapshot.callbacks == 0 {
-          // No callbacks at all: the device chain is dead, not merely quiet.
-          health.emit(
-            source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
-            detail: "no tap callbacks after rebuild — capture chain is dead")
-          self.stop()
-        } else {
-          // Callbacks fire but frames are zero — legitimately possible when
-          // nothing is playing; informational, the app decides.
-          health.emit(
-            source: .systemAudio, phase: .silent, callbackCount: snapshot.callbacks,
-            receivingAudio: false,
-            detail: "tap alive but only zero frames — nothing may be playing")
-        }
+        await self?.runWatchdog(processIds: processIds, fanout: fanout, health: health)
       }
     }
 
-    private func startChain(processIds: [Int64], fanout: AudioFanout) throws {
+    private func runWatchdog(
+      processIds: [Int64], fanout: AudioFanout, health: CaptureHealthHandler
+    ) async {
+      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      guard running else { return }
+      var snapshot = fanout.snapshot
+      if snapshot.nonZeroFrames > 0 {
+        guard running else { return }
+        health.emit(
+          source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
+          receivingAudio: true)
+        return
+      }
+
+      health.emit(
+        source: .systemAudio, phase: .rebuilding, callbackCount: snapshot.callbacks,
+        receivingAudio: false,
+        detail: snapshot.callbacks == 0
+          ? "no tap callbacks in 2s" : "tap delivers only zero frames")
+
+      // Step 1 (locked): tear the old chain down unless stop() won the race.
+      guard teardownForRebuild() else { return }
+      // Step 2 (unlocked): the IOProc is gone, so no new dispatches can be
+      // enqueued — flush the ones already queued so resetStats is clean.
+      await fanoutQueue.drain()
+      // Step 3 (locked): re-check running, reset counters, start fresh.
+      switch rebuildChain(processIds: processIds, fanout: fanout) {
+      case .stopped:
+        return
+      case .failed(let error):
+        health.emit(
+          source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
+          detail: "rebuild failed: \(error.localizedDescription)")
+        return
+      case .started:
+        break
+      }
+
+      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      guard running else { return }
+      snapshot = fanout.snapshot
+      if snapshot.nonZeroFrames > 0 {
+        health.emit(
+          source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
+          receivingAudio: true)
+      } else if snapshot.callbacks == 0 {
+        // No callbacks at all: the device chain is dead, not merely quiet.
+        health.emit(
+          source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
+          detail: "no tap callbacks after rebuild — capture chain is dead")
+        stopFromWatchdog()
+      } else {
+        // Callbacks fire but frames are zero — legitimately possible when
+        // nothing is playing; informational, the app decides.
+        health.emit(
+          source: .systemAudio, phase: .silent, callbackCount: snapshot.callbacks,
+          receivingAudio: false,
+          detail: "tap alive but only zero frames — nothing may be playing")
+      }
+    }
+
+    /// Rebuild step 1: tears the chain down under the lifecycle lock.
+    /// Returns false when the capture was stopped concurrently.
+    private func teardownForRebuild() -> Bool {
+      lifecycleLock.lock()
+      defer { lifecycleLock.unlock() }
+      guard running else { return false }
+      teardownChainLocked()
+      return true
+    }
+
+    private enum RebuildOutcome {
+      case stopped
+      case started
+      case failed(Error)
+    }
+
+    /// Rebuild step 3: starts a fresh chain under the lifecycle lock, unless
+    /// stop() happened while the fan-out queue drained. On failure the
+    /// capture transitions to stopped (nothing left to tear down —
+    /// startChainLocked unwinds its own partial state).
+    private func rebuildChain(processIds: [Int64], fanout: AudioFanout) -> RebuildOutcome {
+      lifecycleLock.lock()
+      defer { lifecycleLock.unlock() }
+      guard running else { return .stopped }
+      fanout.resetStats()
+      do {
+        try startChainLocked(processIds: processIds, fanout: fanout)
+        return .started
+      } catch {
+        runningState.withLock { $0 = false }
+        fanoutQueue.shutdown()
+        return .failed(error)
+      }
+    }
+
+    /// Full stop initiated by the watchdog itself (dead chain after rebuild);
+    /// must not go through stop(), which cancels the calling task and takes
+    /// the same non-recursive lock path.
+    private func stopFromWatchdog() {
+      lifecycleLock.lock()
+      defer { lifecycleLock.unlock() }
+      let wasRunning = runningState.withLock { state in
+        let previous = state
+        state = false
+        return previous
+      }
+      guard wasRunning else { return }
+      teardownChainLocked()
+      fanoutQueue.shutdown()
+    }
+
+    private func startChainLocked(processIds: [Int64], fanout: AudioFanout) throws {
       // 1. Tap description: specific PIDs, or everything except this process.
       let description: CATapDescription
       if processIds.isEmpty {
@@ -235,7 +309,7 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
 
     /// Tears down the tap/aggregate/ioproc chain only, keeping the fan-out
     /// queue and `running` intact — used by the watchdog's one-shot rebuild.
-    private func teardownChain() {
+    private func teardownChainLocked() {
       if let procID = ioProcID {
         AudioDeviceStop(aggregateID, procID)
         // AudioDeviceStop does not wait for an in-flight callback; drain it
@@ -246,6 +320,8 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
     }
 
     func stop() {
+      lifecycleLock.lock()
+      defer { lifecycleLock.unlock() }
       let wasRunning = runningState.withLock { state in
         let previous = state
         state = false
@@ -254,7 +330,7 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       guard wasRunning else { return }
       watchdogTask?.cancel()
       watchdogTask = nil
-      teardownChain()
+      teardownChainLocked()
       fanoutQueue.shutdown()
     }
 
