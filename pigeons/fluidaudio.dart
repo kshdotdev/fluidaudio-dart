@@ -657,6 +657,51 @@ abstract class MicrophoneHostApi {
 // M6: system-audio capture (macOS 14.4+ Core Audio process taps)
 // ---------------------------------------------------------------------------
 
+enum CaptureSourceMessage { microphone, systemAudio }
+
+/// Watchdog phase of a running capture.
+enum CaptureHealthPhaseMessage {
+  /// Self-test window after start (~2 s).
+  validating,
+
+  /// Audio with real content is flowing.
+  healthy,
+
+  /// The system tap was silent; rebuilding it once with fresh process
+  /// translation (helpers often become tappable only after opening audio).
+  rebuilding,
+
+  /// Callbacks fire but every frame is zero. For the microphone this is
+  /// informational (probably muted); for system audio it follows a failed
+  /// rebuild.
+  silent,
+
+  /// The capture produced no audio and the rebuild did not recover it.
+  failed,
+}
+
+/// Capture watchdog event, emitted on phase transitions.
+class CaptureHealthMessage {
+  CaptureHealthMessage({
+    required this.source,
+    required this.phase,
+    required this.callbackCount,
+    required this.receivingAudio,
+    this.detail,
+  });
+
+  CaptureSourceMessage source;
+  CaptureHealthPhaseMessage phase;
+
+  /// Device callbacks observed since start/rebuild.
+  int callbackCount;
+
+  /// Whether any non-zero frame has been observed.
+  bool receivingAudio;
+
+  String? detail;
+}
+
 /// A process currently known to Core Audio (candidate for a targeted tap).
 class AudioProcessMessage {
   AudioProcessMessage({
@@ -724,4 +769,7 @@ abstract class FluidAudioEventChannelApi {
 
   /// Captured system-audio frames (16 kHz mono), when frame emission is on.
   MicFrameMessage systemAudioFrames();
+
+  /// Capture watchdog phase transitions for mic and system audio.
+  CaptureHealthMessage captureHealth();
 }

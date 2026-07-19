@@ -2,6 +2,13 @@
 
 ## 0.1.0 (unreleased)
 
+- Capture watchdog: `FluidMicrophone.health` / `FluidSystemAudio.health`
+  streams report phase transitions after start (validating → healthy /
+  silent / rebuilding / failed). The system tap self-tests for ~2 s and
+  rebuilds once with fresh process translation when silent (Electron helpers
+  become tappable late); a dead chain stops with `failed`, while
+  alive-but-quiet stays running with informational `silent`.
+
 - `FluidSystemAudio.listAudioProcesses()`: enumerate Core Audio processes
   (pid, bundle id, is-playing) to pick tap targets by app — no permission
   needed for the metadata. M6 review fixes: capture paths now use one

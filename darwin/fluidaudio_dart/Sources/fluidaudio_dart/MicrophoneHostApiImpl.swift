@@ -54,6 +54,10 @@ final class AudioFanout {
   private let frames: FrameEmitting
   private let vadEvents: VadEventsHandler
 
+  /// Watchdog counters: written from the serial dispatch context, read from
+  /// the watchdog task.
+  private let stats = OSAllocatedUnfairLock(initialState: (callbacks: 0, nonZeroFrames: 0))
+
   init(attachments: Attachments, frames: FrameEmitting, vadEvents: VadEventsHandler) {
     self.attachments = attachments
     self.chunkers = attachments.vad.map { _ in SampleChunker(chunkSize: VadManager.chunkSize) }
@@ -61,8 +65,21 @@ final class AudioFanout {
     self.vadEvents = vadEvents
   }
 
+  var snapshot: (callbacks: Int, nonZeroFrames: Int) {
+    stats.withLock { $0 }
+  }
+
+  func resetStats() {
+    stats.withLock { $0 = (callbacks: 0, nonZeroFrames: 0) }
+  }
+
   /// Must be called from a single serial context to preserve feed order.
   func dispatch(_ samples: [Float]) {
+    let nonZero = samples.contains { $0 != 0 } ? 1 : 0
+    stats.withLock {
+      $0.callbacks += 1
+      $0.nonZeroFrames += nonZero
+    }
     if attachments.emitFrames {
       frames.emit(samples: samples)
     }
@@ -81,6 +98,38 @@ final class AudioFanout {
       for chunk in chunkers[index].push(samples) {
         attachment.instance.feedChunk(chunk, streamId: attachment.id, events: vadEvents)
       }
+    }
+  }
+}
+
+/// Streams capture watchdog phase transitions for mic and system audio.
+final class CaptureHealthHandler: CaptureHealthStreamHandler {
+  private var sink: PigeonEventSink<CaptureHealthMessage>?
+
+  override func onListen(
+    withArguments arguments: Any?, sink: PigeonEventSink<CaptureHealthMessage>
+  ) {
+    self.sink = sink
+  }
+
+  override func onCancel(withArguments arguments: Any?) {
+    sink = nil
+  }
+
+  func emit(
+    source: CaptureSourceMessage,
+    phase: CaptureHealthPhaseMessage,
+    callbackCount: Int,
+    receivingAudio: Bool,
+    detail: String? = nil
+  ) {
+    let message = CaptureHealthMessage(
+      source: source, phase: phase, callbackCount: Int64(callbackCount),
+      receivingAudio: receivingAudio, detail: detail)
+    if Thread.isMainThread {
+      sink?.success(message)
+    } else {
+      DispatchQueue.main.async { [weak self] in self?.sink?.success(message) }
     }
   }
 }
@@ -120,6 +169,7 @@ final class MicCapture {
 
   private let engine = AVAudioEngine()
   private let queue = SerialTaskQueue()
+  private var watchdogTask: Task<Void, Never>?
 
   /// Read on the real-time audio thread, written from the platform thread —
   /// must be lock-protected (plain Bool access across threads is a data race).
@@ -138,7 +188,8 @@ final class MicCapture {
   func start(
     attachments: Attachments,
     frames: MicFramesHandler,
-    vadEvents: VadEventsHandler
+    vadEvents: VadEventsHandler,
+    health: CaptureHealthHandler
   ) throws {
     #if os(iOS)
       let session = AVAudioSession.sharedInstance()
@@ -171,6 +222,29 @@ final class MicCapture {
     engine.prepare()
     try engine.start()
     runningState.withLock { $0 = true }
+
+    // Self-test: a healthy mic always shows noise-floor non-zero samples
+    // within the window; all-zero frames indicate a broken/muted capture.
+    // Informational only — no rebuild for the microphone.
+    health.emit(
+      source: .microphone, phase: .validating, callbackCount: 0, receivingAudio: false)
+    watchdogTask = Task { [weak self] in
+      try? await Task.sleep(nanoseconds: 2_000_000_000)
+      guard let self, self.running else { return }
+      let snapshot = fanout.snapshot
+      if snapshot.nonZeroFrames > 0 {
+        health.emit(
+          source: .microphone, phase: .healthy, callbackCount: snapshot.callbacks,
+          receivingAudio: true)
+      } else {
+        health.emit(
+          source: .microphone, phase: .silent, callbackCount: snapshot.callbacks,
+          receivingAudio: false,
+          detail: snapshot.callbacks == 0
+            ? "no capture callbacks in 2s — the input device may be unavailable"
+            : "callbacks firing but every frame is zero — mic muted or capture broken")
+      }
+    }
   }
 
   func stop() {
@@ -180,6 +254,8 @@ final class MicCapture {
       return previous
     }
     guard wasRunning else { return }
+    watchdogTask?.cancel()
+    watchdogTask = nil
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
     queue.shutdown()
@@ -209,12 +285,17 @@ final class MicrophoneHostApiImpl: MicrophoneHostApi {
   private let registry: InstanceRegistry
   private let frames: MicFramesHandler
   private let vadEvents: VadEventsHandler
+  private let health: CaptureHealthHandler
   private var capture: MicCapture?
 
-  init(registry: InstanceRegistry, frames: MicFramesHandler, vadEvents: VadEventsHandler) {
+  init(
+    registry: InstanceRegistry, frames: MicFramesHandler, vadEvents: VadEventsHandler,
+    health: CaptureHealthHandler
+  ) {
     self.registry = registry
     self.frames = frames
     self.vadEvents = vadEvents
+    self.health = health
   }
 
   func start(
@@ -261,7 +342,8 @@ final class MicrophoneHostApiImpl: MicrophoneHostApi {
         attachments: MicCapture.Attachments(
           asr: asr, eou: eou, vad: vad, emitFrames: emitFrames),
         frames: frames,
-        vadEvents: vadEvents
+        vadEvents: vadEvents,
+        health: health
       )
       capture = newCapture
       completion(.success(()))

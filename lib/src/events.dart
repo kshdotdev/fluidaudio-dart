@@ -23,6 +23,7 @@ class FluidEventHub {
     Stream<messages.TtsChunkMessage>? ttsChunks,
     Stream<messages.MicFrameMessage>? micFrames,
     Stream<messages.MicFrameMessage>? systemAudioFrames,
+    Stream<messages.CaptureHealthMessage>? captureHealth,
   }) {
     _transcriptionUpdates = transcriptionUpdates;
     _downloadProgress = downloadProgress;
@@ -32,6 +33,7 @@ class FluidEventHub {
     _ttsChunks = ttsChunks;
     _micFrames = micFrames;
     _systemAudioFrames = systemAudioFrames;
+    _captureHealth = captureHealth;
   }
 
   static final FluidEventHub instance = FluidEventHub._();
@@ -44,6 +46,7 @@ class FluidEventHub {
   Stream<messages.TtsChunkMessage>? _ttsChunks;
   Stream<messages.MicFrameMessage>? _micFrames;
   Stream<messages.MicFrameMessage>? _systemAudioFrames;
+  Stream<messages.CaptureHealthMessage>? _captureHealth;
 
   int _nextToken = 1;
 
@@ -85,6 +88,15 @@ class FluidEventHub {
 
   Stream<messages.MicFrameMessage> get systemAudioFrames =>
       _systemAudioFrames ??= messages.systemAudioFrames().asBroadcastStream();
+
+  Stream<messages.CaptureHealthMessage> get captureHealth =>
+      _captureHealth ??= messages.captureHealth().asBroadcastStream();
+
+  /// Watchdog events for one capture source.
+  Stream<messages.CaptureHealthMessage> captureHealthFor(
+      messages.CaptureSourceMessage source) {
+    return captureHealth.where((event) => event.source == source);
+  }
 
   /// Synthesis frames for one streaming-synthesis call.
   Stream<messages.TtsChunkMessage> ttsChunksFor(int streamToken) {

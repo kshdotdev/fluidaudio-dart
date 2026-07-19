@@ -224,6 +224,28 @@ enum KokoroVariantMessage: Int, CaseIterable {
   case japanese = 2
 }
 
+enum CaptureSourceMessage: Int, CaseIterable {
+  case microphone = 0
+  case systemAudio = 1
+}
+
+/// Watchdog phase of a running capture.
+enum CaptureHealthPhaseMessage: Int, CaseIterable {
+  /// Self-test window after start (~2 s).
+  case validating = 0
+  /// Audio with real content is flowing.
+  case healthy = 1
+  /// The system tap was silent; rebuilding it once with fresh process
+  /// translation (helpers often become tappable only after opening audio).
+  case rebuilding = 2
+  /// Callbacks fire but every frame is zero. For the microphone this is
+  /// informational (probably muted); for system audio it follows a failed
+  /// rebuild.
+  case silent = 3
+  /// The capture produced no audio and the rebuild did not recover it.
+  case failed = 4
+}
+
 /// System information reported by the native FluidAudio runtime.
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -1303,6 +1325,65 @@ struct MicFrameMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Capture watchdog event, emitted on phase transitions.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct CaptureHealthMessage: Hashable, CustomStringConvertible {
+  var source: CaptureSourceMessage
+  var phase: CaptureHealthPhaseMessage
+  /// Device callbacks observed since start/rebuild.
+  var callbackCount: Int64
+  /// Whether any non-zero frame has been observed.
+  var receivingAudio: Bool
+  var detail: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> CaptureHealthMessage? {
+    let source = pigeonVar_list[0] as! CaptureSourceMessage
+    let phase = pigeonVar_list[1] as! CaptureHealthPhaseMessage
+    let callbackCount = pigeonVar_list[2] as! Int64
+    let receivingAudio = pigeonVar_list[3] as! Bool
+    let detail: String? = nilOrValue(pigeonVar_list[4])
+
+    return CaptureHealthMessage(
+      source: source,
+      phase: phase,
+      callbackCount: callbackCount,
+      receivingAudio: receivingAudio,
+      detail: detail
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      source,
+      phase,
+      callbackCount,
+      receivingAudio,
+      detail,
+    ]
+  }
+  static func == (lhs: CaptureHealthMessage, rhs: CaptureHealthMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.source, rhs.source) && MessagesPigeonInternal.deepEquals(lhs.phase, rhs.phase) && MessagesPigeonInternal.deepEquals(lhs.callbackCount, rhs.callbackCount) && MessagesPigeonInternal.deepEquals(lhs.receivingAudio, rhs.receivingAudio) && MessagesPigeonInternal.deepEquals(lhs.detail, rhs.detail)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("CaptureHealthMessage")
+    MessagesPigeonInternal.deepHash(value: source, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: phase, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: callbackCount, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: receivingAudio, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: detail, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "CaptureHealthMessage(source: \(String(describing: source)), phase: \(String(describing: phase)), callbackCount: \(String(describing: callbackCount)), receivingAudio: \(String(describing: receivingAudio)), detail: \(String(describing: detail)))"
+  }
+}
+
 /// A process currently known to Core Audio (candidate for a targeted tap).
 ///
 /// Generated class from Pigeon that represents data sent in messages.
@@ -1391,46 +1472,60 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
       }
       return nil
     case 135:
-      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return CaptureSourceMessage(rawValue: enumResultAsInt)
+      }
+      return nil
     case 136:
-      return DebugEventMessage.fromList(self.readValue() as! [Any?])
+      let enumResultAsInt: Int? = nilOrValue(self.readValue() as! Int?)
+      if let enumResultAsInt = enumResultAsInt {
+        return CaptureHealthPhaseMessage(rawValue: enumResultAsInt)
+      }
+      return nil
     case 137:
-      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
+      return SystemInfoMessage.fromList(self.readValue() as! [Any?])
     case 138:
-      return AsrResultMessage.fromList(self.readValue() as! [Any?])
+      return DebugEventMessage.fromList(self.readValue() as! [Any?])
     case 139:
-      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
+      return TokenTimingMessage.fromList(self.readValue() as! [Any?])
     case 140:
-      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
+      return AsrResultMessage.fromList(self.readValue() as! [Any?])
     case 141:
-      return VadResultMessage.fromList(self.readValue() as! [Any?])
+      return TranscriptionUpdateMessage.fromList(self.readValue() as! [Any?])
     case 142:
-      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
+      return DownloadProgressMessage.fromList(self.readValue() as! [Any?])
     case 143:
-      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
+      return VadResultMessage.fromList(self.readValue() as! [Any?])
     case 144:
-      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
+      return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
     case 145:
-      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
     case 146:
-      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
     case 147:
-      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
+      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 148:
-      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
+      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 149:
-      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
     case 150:
-      return EouEventMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
     case 151:
-      return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
     case 152:
-      return TtsResultMessage.fromList(self.readValue() as! [Any?])
+      return EouEventMessage.fromList(self.readValue() as! [Any?])
     case 153:
-      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
+      return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
     case 154:
-      return MicFrameMessage.fromList(self.readValue() as! [Any?])
+      return TtsResultMessage.fromList(self.readValue() as! [Any?])
     case 155:
+      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
+    case 156:
+      return MicFrameMessage.fromList(self.readValue() as! [Any?])
+    case 157:
+      return CaptureHealthMessage.fromList(self.readValue() as! [Any?])
+    case 158:
       return AudioProcessMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1458,68 +1553,77 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? KokoroVariantMessage {
       super.writeByte(134)
       super.writeValue(value.rawValue)
-    } else if let value = value as? SystemInfoMessage {
+    } else if let value = value as? CaptureSourceMessage {
       super.writeByte(135)
-      super.writeValue(value.toList())
-    } else if let value = value as? DebugEventMessage {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? CaptureHealthPhaseMessage {
       super.writeByte(136)
-      super.writeValue(value.toList())
-    } else if let value = value as? TokenTimingMessage {
+      super.writeValue(value.rawValue)
+    } else if let value = value as? SystemInfoMessage {
       super.writeByte(137)
       super.writeValue(value.toList())
-    } else if let value = value as? AsrResultMessage {
+    } else if let value = value as? DebugEventMessage {
       super.writeByte(138)
       super.writeValue(value.toList())
-    } else if let value = value as? TranscriptionUpdateMessage {
+    } else if let value = value as? TokenTimingMessage {
       super.writeByte(139)
       super.writeValue(value.toList())
-    } else if let value = value as? DownloadProgressMessage {
+    } else if let value = value as? AsrResultMessage {
       super.writeByte(140)
       super.writeValue(value.toList())
-    } else if let value = value as? VadResultMessage {
+    } else if let value = value as? TranscriptionUpdateMessage {
       super.writeByte(141)
       super.writeValue(value.toList())
-    } else if let value = value as? VadStreamEventMessage {
+    } else if let value = value as? DownloadProgressMessage {
       super.writeByte(142)
       super.writeValue(value.toList())
-    } else if let value = value as? StreamingConfigMessage {
+    } else if let value = value as? VadResultMessage {
       super.writeByte(143)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationSegmentMessage {
+    } else if let value = value as? VadStreamEventMessage {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakerEmbeddingMessage {
+    } else if let value = value as? StreamingConfigMessage {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? ChunkEmbeddingMessage {
+    } else if let value = value as? DiarizationSegmentMessage {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationTimingsMessage {
+    } else if let value = value as? SpeakerEmbeddingMessage {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationResultMessage {
+    } else if let value = value as? ChunkEmbeddingMessage {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationProgressMessage {
+    } else if let value = value as? DiarizationTimingsMessage {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? EouEventMessage {
+    } else if let value = value as? DiarizationResultMessage {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? VocabularyTermMessage {
+    } else if let value = value as? DiarizationProgressMessage {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsResultMessage {
+    } else if let value = value as? EouEventMessage {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsChunkMessage {
+    } else if let value = value as? VocabularyTermMessage {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? MicFrameMessage {
+    } else if let value = value as? TtsResultMessage {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioProcessMessage {
+    } else if let value = value as? TtsChunkMessage {
       super.writeByte(155)
+      super.writeValue(value.toList())
+    } else if let value = value as? MicFrameMessage {
+      super.writeByte(156)
+      super.writeValue(value.toList())
+    } else if let value = value as? CaptureHealthMessage {
+      super.writeByte(157)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioProcessMessage {
+      super.writeByte(158)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -3197,6 +3301,20 @@ class SystemAudioFramesStreamHandler: PigeonEventChannelWrapper<MicFrameMessage>
       channelName += ".\(instanceName)"
     }
     let internalStreamHandler = PigeonStreamHandler<MicFrameMessage>(wrapper: streamHandler)
+    let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
+    channel.setStreamHandler(internalStreamHandler)
+  }
+}
+      
+class CaptureHealthStreamHandler: PigeonEventChannelWrapper<CaptureHealthMessage> {
+  static func register(with messenger: FlutterBinaryMessenger,
+                      instanceName: String = "",
+                      streamHandler: CaptureHealthStreamHandler) {
+    var channelName = "dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.captureHealth"
+    if !instanceName.isEmpty {
+      channelName += ".\(instanceName)"
+    }
+    let internalStreamHandler = PigeonStreamHandler<CaptureHealthMessage>(wrapper: streamHandler)
     let channel = FlutterEventChannel(name: channelName, binaryMessenger: messenger, codec: messagesPigeonMethodCodec)
     channel.setStreamHandler(internalStreamHandler)
   }

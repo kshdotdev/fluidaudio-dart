@@ -47,6 +47,7 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
     private let ioQueue = DispatchQueue(label: "fluidaudio_dart.systemaudio", qos: .userInitiated)
     private let fanoutQueue = SerialTaskQueue()
     private let runningState = OSAllocatedUnfairLock(initialState: false)
+    private var watchdogTask: Task<Void, Never>?
 
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -60,7 +61,68 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       stop()
     }
 
-    func start(processIds: [Int64], fanout: AudioFanout) throws {
+    func start(processIds: [Int64], fanout: AudioFanout, health: CaptureHealthHandler) throws {
+      try startChain(processIds: processIds, fanout: fanout)
+      runningState.withLock { $0 = true }
+
+      // Self-test (ectos pattern): if the first window shows no real audio,
+      // rebuild the chain once with fresh process translation — Electron/
+      // Chromium helpers often become tappable only after they open audio.
+      health.emit(
+        source: .systemAudio, phase: .validating, callbackCount: 0, receivingAudio: false)
+      watchdogTask = Task { [weak self] in
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        guard let self, self.running else { return }
+        var snapshot = fanout.snapshot
+        if snapshot.nonZeroFrames > 0 {
+          health.emit(
+            source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
+            receivingAudio: true)
+          return
+        }
+
+        health.emit(
+          source: .systemAudio, phase: .rebuilding, callbackCount: snapshot.callbacks,
+          receivingAudio: false,
+          detail: snapshot.callbacks == 0
+            ? "no tap callbacks in 2s" : "tap delivers only zero frames")
+        self.teardownChain()
+        fanout.resetStats()
+        do {
+          try self.startChain(processIds: processIds, fanout: fanout)
+        } catch {
+          health.emit(
+            source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
+            detail: "rebuild failed: \(error.localizedDescription)")
+          self.stop()
+          return
+        }
+
+        try? await Task.sleep(nanoseconds: 2_000_000_000)
+        guard self.running else { return }
+        snapshot = fanout.snapshot
+        if snapshot.nonZeroFrames > 0 {
+          health.emit(
+            source: .systemAudio, phase: .healthy, callbackCount: snapshot.callbacks,
+            receivingAudio: true)
+        } else if snapshot.callbacks == 0 {
+          // No callbacks at all: the device chain is dead, not merely quiet.
+          health.emit(
+            source: .systemAudio, phase: .failed, callbackCount: 0, receivingAudio: false,
+            detail: "no tap callbacks after rebuild — capture chain is dead")
+          self.stop()
+        } else {
+          // Callbacks fire but frames are zero — legitimately possible when
+          // nothing is playing; informational, the app decides.
+          health.emit(
+            source: .systemAudio, phase: .silent, callbackCount: snapshot.callbacks,
+            receivingAudio: false,
+            detail: "tap alive but only zero frames — nothing may be playing")
+        }
+      }
+    }
+
+    private func startChain(processIds: [Int64], fanout: AudioFanout) throws {
       // 1. Tap description: specific PIDs, or everything except this process.
       let description: CATapDescription
       if processIds.isEmpty {
@@ -169,7 +231,18 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
         throw PigeonError(
           code: "DeviceStartFailed", message: "AudioDeviceStart failed (\(status))", details: nil)
       }
-      runningState.withLock { $0 = true }
+    }
+
+    /// Tears down the tap/aggregate/ioproc chain only, keeping the fan-out
+    /// queue and `running` intact — used by the watchdog's one-shot rebuild.
+    private func teardownChain() {
+      if let procID = ioProcID {
+        AudioDeviceStop(aggregateID, procID)
+        // AudioDeviceStop does not wait for an in-flight callback; drain it
+        // before tearing the chain down.
+        ioQueue.sync {}
+      }
+      unwind()
     }
 
     func stop() {
@@ -179,13 +252,9 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
         return previous
       }
       guard wasRunning else { return }
-      if let procID = ioProcID {
-        AudioDeviceStop(aggregateID, procID)
-        // AudioDeviceStop does not wait for an in-flight callback; drain it
-        // before tearing the chain down.
-        ioQueue.sync {}
-      }
-      unwind()
+      watchdogTask?.cancel()
+      watchdogTask = nil
+      teardownChain()
       fanoutQueue.shutdown()
     }
 
@@ -318,15 +387,20 @@ final class SystemAudioHostApiImpl: SystemAudioHostApi {
   private let registry: InstanceRegistry
   private let frames: SystemAudioFramesHandler
   private let vadEvents: VadEventsHandler
+  private let health: CaptureHealthHandler
 
   #if os(macOS)
     private var capture: Any?
   #endif
 
-  init(registry: InstanceRegistry, frames: SystemAudioFramesHandler, vadEvents: VadEventsHandler) {
+  init(
+    registry: InstanceRegistry, frames: SystemAudioFramesHandler, vadEvents: VadEventsHandler,
+    health: CaptureHealthHandler
+  ) {
     self.registry = registry
     self.frames = frames
     self.vadEvents = vadEvents
+    self.health = health
   }
 
   private static var supported: Bool {
@@ -412,7 +486,7 @@ final class SystemAudioHostApiImpl: SystemAudioHostApi {
         )
         let newCapture = SystemAudioCapture()
         do {
-          try newCapture.start(processIds: processIds, fanout: fanout)
+          try newCapture.start(processIds: processIds, fanout: fanout, health: health)
           capture = newCapture
           completion(.success(()))
         } catch {

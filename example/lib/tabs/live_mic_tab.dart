@@ -24,8 +24,10 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
   FluidVadStream? _vadStream;
   StreamSubscription<FluidTranscriptionUpdate>? _updatesSubscription;
   StreamSubscription<FluidVadStreamEvent>? _vadSubscription;
+  StreamSubscription<FluidCaptureHealth>? _healthSubscription;
 
   String _status = 'idle';
+  String _health = '';
   String _confirmed = '';
   String _volatile = '';
   double _probability = 0;
@@ -46,6 +48,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
     await _systemAudio.stop();
     await _updatesSubscription?.cancel();
     await _vadSubscription?.cancel();
+    await _healthSubscription?.cancel();
     await _vadStream?.dispose();
     await _vad?.dispose();
     await _session?.dispose();
@@ -79,6 +82,17 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       });
       _vadSubscription = vadStream.events.listen((event) {
         if (mounted) setState(() => _probability = event.probability);
+      });
+      // Subscribe before starting capture so the validating phase is seen.
+      _healthSubscription = (_source == _CaptureSource.systemAudio
+              ? _systemAudio.health
+              : _microphone.health)
+          .listen((event) {
+        if (!mounted) return;
+        setState(() {
+          _health = '${event.phase.name}'
+              '${event.detail == null ? '' : ' — ${event.detail}'}';
+        });
       });
 
       if (_source == _CaptureSource.systemAudio) {
@@ -193,6 +207,9 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
           ),
           const SizedBox(height: 8),
           Text(_status),
+          if (_health.isNotEmpty)
+            Text('watchdog: $_health',
+                style: Theme.of(context).textTheme.bodySmall),
           const Divider(height: 24),
           Expanded(
             child: SingleChildScrollView(

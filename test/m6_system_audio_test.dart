@@ -124,4 +124,73 @@ void main() {
     await subscription.cancel();
     await rawFrames.close();
   });
+
+  test('capture health streams demux by source and map phases', () async {
+    final rawHealth = StreamController<messages.CaptureHealthMessage>.broadcast();
+    final hub = FluidEventHub.test(
+      downloadProgress: const Stream.empty(),
+      captureHealth: rawHealth.stream,
+    );
+    final systemAudio = FluidSystemAudio(hostApi: _FakeSystemAudioHostApi(), events: hub);
+    final microphone = FluidMicrophone(
+      hostApi: _FakeMicrophoneHostApi(),
+      events: hub,
+    );
+
+    final systemEvents = <FluidCaptureHealth>[];
+    final micEvents = <FluidCaptureHealth>[];
+    final systemSubscription = systemAudio.health.listen(systemEvents.add);
+    final micSubscription = microphone.health.listen(micEvents.add);
+
+    rawHealth
+      ..add(messages.CaptureHealthMessage(
+          source: messages.CaptureSourceMessage.systemAudio,
+          phase: messages.CaptureHealthPhaseMessage.validating,
+          callbackCount: 0,
+          receivingAudio: false))
+      ..add(messages.CaptureHealthMessage(
+          source: messages.CaptureSourceMessage.systemAudio,
+          phase: messages.CaptureHealthPhaseMessage.rebuilding,
+          callbackCount: 12,
+          receivingAudio: false,
+          detail: 'tap delivers only zero frames'))
+      ..add(messages.CaptureHealthMessage(
+          source: messages.CaptureSourceMessage.microphone,
+          phase: messages.CaptureHealthPhaseMessage.healthy,
+          callbackCount: 20,
+          receivingAudio: true));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(systemEvents, hasLength(2));
+    expect(systemEvents[0].phase, CaptureHealthPhase.validating);
+    expect(systemEvents[1].phase, CaptureHealthPhase.rebuilding);
+    expect(systemEvents[1].detail, contains('zero frames'));
+    expect(micEvents, hasLength(1));
+    expect(micEvents.single.phase, CaptureHealthPhase.healthy);
+    expect(micEvents.single.receivingAudio, isTrue);
+
+    await systemSubscription.cancel();
+    await micSubscription.cancel();
+    await rawHealth.close();
+  });
+}
+
+class _FakeMicrophoneHostApi implements messages.MicrophoneHostApi {
+  @override
+  // ignore: non_constant_identifier_names
+  final BinaryMessenger? pigeonVar_binaryMessenger = null;
+
+  @override
+  // ignore: non_constant_identifier_names
+  final String pigeonVar_messageChannelSuffix = '';
+
+  @override
+  Future<void> start(List<int> asrInstanceIds, List<int> eouInstanceIds,
+      List<int> vadStreamIds, bool emitFrames) async {}
+
+  @override
+  Future<void> stop() async {}
+
+  @override
+  Future<bool> isRunning() async => false;
 }

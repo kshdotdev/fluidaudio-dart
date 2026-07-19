@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:meta/meta.dart';
 
 import 'audio_bytes.dart';
+import 'capture_health.dart';
 import 'eou.dart';
 import 'events.dart';
 import 'exceptions.dart';
@@ -67,4 +68,11 @@ class FluidMicrophone {
   Stream<FluidMicFrame> get frames => _events.micFrames.map(
         (frame) => FluidMicFrame(samples: bytesToFloats(frame.samples), rms: frame.rms),
       );
+
+  /// Watchdog phase transitions: after [start], a ~2 s self-test resolves to
+  /// [CaptureHealthPhase.healthy] or an informational
+  /// [CaptureHealthPhase.silent] (mic muted / device unavailable).
+  Stream<FluidCaptureHealth> get health => _events
+      .captureHealthFor(messages.CaptureSourceMessage.microphone)
+      .map(mapCaptureHealth);
 }

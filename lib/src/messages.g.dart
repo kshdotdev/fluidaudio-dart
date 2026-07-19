@@ -137,6 +137,28 @@ enum KokoroVariantMessage {
   japanese,
 }
 
+enum CaptureSourceMessage {
+  microphone,
+  systemAudio,
+}
+
+/// Watchdog phase of a running capture.
+enum CaptureHealthPhaseMessage {
+  /// Self-test window after start (~2 s).
+  validating,
+  /// Audio with real content is flowing.
+  healthy,
+  /// The system tap was silent; rebuilding it once with fresh process
+  /// translation (helpers often become tappable only after opening audio).
+  rebuilding,
+  /// Callbacks fire but every frame is zero. For the microphone this is
+  /// informational (probably muted); for system audio it follows a failed
+  /// rebuild.
+  silent,
+  /// The capture produced no audio and the rebuild did not recover it.
+  failed,
+}
+
 /// System information reported by the native FluidAudio runtime.
 class SystemInfoMessage {
   SystemInfoMessage({
@@ -1407,6 +1429,74 @@ class MicFrameMessage {
   }
 }
 
+/// Capture watchdog event, emitted on phase transitions.
+class CaptureHealthMessage {
+  CaptureHealthMessage({
+    required this.source,
+    required this.phase,
+    required this.callbackCount,
+    required this.receivingAudio,
+    this.detail,
+  });
+
+  CaptureSourceMessage source;
+
+  CaptureHealthPhaseMessage phase;
+
+  /// Device callbacks observed since start/rebuild.
+  int callbackCount;
+
+  /// Whether any non-zero frame has been observed.
+  bool receivingAudio;
+
+  String? detail;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      source,
+      phase,
+      callbackCount,
+      receivingAudio,
+      detail,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static CaptureHealthMessage decode(Object result) {
+    result as List<Object?>;
+    return CaptureHealthMessage(
+      source: result[0]! as CaptureSourceMessage,
+      phase: result[1]! as CaptureHealthPhaseMessage,
+      callbackCount: result[2]! as int,
+      receivingAudio: result[3]! as bool,
+      detail: result[4] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! CaptureHealthMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(source, other.source) && _deepEquals(phase, other.phase) && _deepEquals(callbackCount, other.callbackCount) && _deepEquals(receivingAudio, other.receivingAudio) && _deepEquals(detail, other.detail);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'CaptureHealthMessage(source: $source, phase: $phase, callbackCount: $callbackCount, receivingAudio: $receivingAudio, detail: $detail)';
+  }
+}
+
 /// A process currently known to Core Audio (candidate for a targeted tap).
 class AudioProcessMessage {
   AudioProcessMessage({
@@ -1490,68 +1580,77 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is KokoroVariantMessage) {
       buffer.putUint8(134);
       writeValue(buffer, value.index);
-    }    else if (value is SystemInfoMessage) {
+    }    else if (value is CaptureSourceMessage) {
       buffer.putUint8(135);
-      writeValue(buffer, value.encode());
-    }    else if (value is DebugEventMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is CaptureHealthPhaseMessage) {
       buffer.putUint8(136);
-      writeValue(buffer, value.encode());
-    }    else if (value is TokenTimingMessage) {
+      writeValue(buffer, value.index);
+    }    else if (value is SystemInfoMessage) {
       buffer.putUint8(137);
       writeValue(buffer, value.encode());
-    }    else if (value is AsrResultMessage) {
+    }    else if (value is DebugEventMessage) {
       buffer.putUint8(138);
       writeValue(buffer, value.encode());
-    }    else if (value is TranscriptionUpdateMessage) {
+    }    else if (value is TokenTimingMessage) {
       buffer.putUint8(139);
       writeValue(buffer, value.encode());
-    }    else if (value is DownloadProgressMessage) {
+    }    else if (value is AsrResultMessage) {
       buffer.putUint8(140);
       writeValue(buffer, value.encode());
-    }    else if (value is VadResultMessage) {
+    }    else if (value is TranscriptionUpdateMessage) {
       buffer.putUint8(141);
       writeValue(buffer, value.encode());
-    }    else if (value is VadStreamEventMessage) {
+    }    else if (value is DownloadProgressMessage) {
       buffer.putUint8(142);
       writeValue(buffer, value.encode());
-    }    else if (value is StreamingConfigMessage) {
+    }    else if (value is VadResultMessage) {
       buffer.putUint8(143);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationSegmentMessage) {
+    }    else if (value is VadStreamEventMessage) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakerEmbeddingMessage) {
+    }    else if (value is StreamingConfigMessage) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is ChunkEmbeddingMessage) {
+    }    else if (value is DiarizationSegmentMessage) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationTimingsMessage) {
+    }    else if (value is SpeakerEmbeddingMessage) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationResultMessage) {
+    }    else if (value is ChunkEmbeddingMessage) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationProgressMessage) {
+    }    else if (value is DiarizationTimingsMessage) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is EouEventMessage) {
+    }    else if (value is DiarizationResultMessage) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is VocabularyTermMessage) {
+    }    else if (value is DiarizationProgressMessage) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsResultMessage) {
+    }    else if (value is EouEventMessage) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsChunkMessage) {
+    }    else if (value is VocabularyTermMessage) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is MicFrameMessage) {
+    }    else if (value is TtsResultMessage) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioProcessMessage) {
+    }    else if (value is TtsChunkMessage) {
       buffer.putUint8(155);
+      writeValue(buffer, value.encode());
+    }    else if (value is MicFrameMessage) {
+      buffer.putUint8(156);
+      writeValue(buffer, value.encode());
+    }    else if (value is CaptureHealthMessage) {
+      buffer.putUint8(157);
+      writeValue(buffer, value.encode());
+    }    else if (value is AudioProcessMessage) {
+      buffer.putUint8(158);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1580,46 +1679,54 @@ class _PigeonCodec extends StandardMessageCodec {
         final value = readValue(buffer) as int?;
         return value == null ? null : KokoroVariantMessage.values[value];
       case 135:
-        return SystemInfoMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : CaptureSourceMessage.values[value];
       case 136:
-        return DebugEventMessage.decode(readValue(buffer)!);
+        final value = readValue(buffer) as int?;
+        return value == null ? null : CaptureHealthPhaseMessage.values[value];
       case 137:
-        return TokenTimingMessage.decode(readValue(buffer)!);
+        return SystemInfoMessage.decode(readValue(buffer)!);
       case 138:
-        return AsrResultMessage.decode(readValue(buffer)!);
+        return DebugEventMessage.decode(readValue(buffer)!);
       case 139:
-        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
+        return TokenTimingMessage.decode(readValue(buffer)!);
       case 140:
-        return DownloadProgressMessage.decode(readValue(buffer)!);
+        return AsrResultMessage.decode(readValue(buffer)!);
       case 141:
-        return VadResultMessage.decode(readValue(buffer)!);
+        return TranscriptionUpdateMessage.decode(readValue(buffer)!);
       case 142:
-        return VadStreamEventMessage.decode(readValue(buffer)!);
+        return DownloadProgressMessage.decode(readValue(buffer)!);
       case 143:
-        return StreamingConfigMessage.decode(readValue(buffer)!);
+        return VadResultMessage.decode(readValue(buffer)!);
       case 144:
-        return DiarizationSegmentMessage.decode(readValue(buffer)!);
+        return VadStreamEventMessage.decode(readValue(buffer)!);
       case 145:
-        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
+        return StreamingConfigMessage.decode(readValue(buffer)!);
       case 146:
-        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
+        return DiarizationSegmentMessage.decode(readValue(buffer)!);
       case 147:
-        return DiarizationTimingsMessage.decode(readValue(buffer)!);
+        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
       case 148:
-        return DiarizationResultMessage.decode(readValue(buffer)!);
+        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
       case 149:
-        return DiarizationProgressMessage.decode(readValue(buffer)!);
+        return DiarizationTimingsMessage.decode(readValue(buffer)!);
       case 150:
-        return EouEventMessage.decode(readValue(buffer)!);
+        return DiarizationResultMessage.decode(readValue(buffer)!);
       case 151:
-        return VocabularyTermMessage.decode(readValue(buffer)!);
+        return DiarizationProgressMessage.decode(readValue(buffer)!);
       case 152:
-        return TtsResultMessage.decode(readValue(buffer)!);
+        return EouEventMessage.decode(readValue(buffer)!);
       case 153:
-        return TtsChunkMessage.decode(readValue(buffer)!);
+        return VocabularyTermMessage.decode(readValue(buffer)!);
       case 154:
-        return MicFrameMessage.decode(readValue(buffer)!);
+        return TtsResultMessage.decode(readValue(buffer)!);
       case 155:
+        return TtsChunkMessage.decode(readValue(buffer)!);
+      case 156:
+        return MicFrameMessage.decode(readValue(buffer)!);
+      case 157:
+        return CaptureHealthMessage.decode(readValue(buffer)!);
+      case 158:
         return AudioProcessMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -3220,6 +3327,25 @@ Stream<MicFrameMessage> systemAudioFrames( {String instanceName = ''}) {
       EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.systemAudioFrames$instanceName', pigeonMethodCodec);
   return systemAudioFramesChannel.receiveBroadcastStream().map((dynamic event) {
     return event as MicFrameMessage;
+  });
+}
+    
+/// Capture watchdog phase transitions for mic and system audio.
+///
+/// Returns a broadcast [Stream] of events from the `captureHealth` event channel.
+///
+/// Each call to this method creates a new [EventChannel], so it should
+/// not be called multiple times for the same `instanceName`. To deliver
+/// events to multiple listeners, call this method once and listen to the
+/// returned broadcast stream multiple times instead.
+Stream<CaptureHealthMessage> captureHealth( {String instanceName = ''}) {
+  if (instanceName.isNotEmpty) {
+    instanceName = '.$instanceName';
+  }
+  final EventChannel captureHealthChannel =
+      EventChannel('dev.flutter.pigeon.fluidaudio_dart.FluidAudioEventChannelApi.captureHealth$instanceName', pigeonMethodCodec);
+  return captureHealthChannel.receiveBroadcastStream().map((dynamic event) {
+    return event as CaptureHealthMessage;
   });
 }
     

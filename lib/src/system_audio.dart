@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import 'audio_bytes.dart';
+import 'capture_health.dart';
 import 'eou.dart';
 import 'events.dart';
 import 'exceptions.dart';
@@ -107,4 +108,14 @@ class FluidSystemAudio {
   Stream<FluidMicFrame> get frames => _events.systemAudioFrames.map(
         (frame) => FluidMicFrame(samples: bytesToFloats(frame.samples), rms: frame.rms),
       );
+
+  /// Watchdog phase transitions: after [start], a ~2 s self-test either
+  /// resolves [CaptureHealthPhase.healthy], or rebuilds the tap once with
+  /// fresh process translation ([CaptureHealthPhase.rebuilding]) before
+  /// settling on healthy, informational [CaptureHealthPhase.silent] (tap
+  /// alive, nothing playing), or [CaptureHealthPhase.failed] (chain dead —
+  /// the capture is stopped).
+  Stream<FluidCaptureHealth> get health => _events
+      .captureHealthFor(messages.CaptureSourceMessage.systemAudio)
+      .map(mapCaptureHealth);
 }
