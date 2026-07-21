@@ -67,7 +67,7 @@ abstract class SystemHostApi {
 enum AsrVersionMessage { v2, v3 }
 
 /// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
-enum ModelKindMessage { vad, parakeetV2, parakeetV3 }
+enum ModelKindMessage { vad, parakeetV2, parakeetV3, eou }
 
 enum DownloadPhaseMessage { listing, downloading, compiling, completed, failed }
 

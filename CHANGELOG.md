@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.0 — 2026-07-20
+
+**Models**
+- `ModelKind.eou` — the end-of-utterance streaming model (~450 MB, `ms320`
+  chunk variant) joins `FluidModels`: pre-download with progress via
+  `download`, probe with `isDownloaded`, and clear every chunk variant with
+  `remove`. A `FluidEou.create` session then starts from cache instead of
+  blocking its caller on a first-run download.
+
+**Fixes**
+- End-of-utterance models now cache under the standard
+  `…/FluidAudio/Models/parakeet-eou-streaming/<chunk>` layout. FluidAudio
+  0.15.5's default path resolution doubled the `parakeet-eou-streaming`
+  segment, so live sessions and model management could never share a cache;
+  they now use one canonical path, and caches written through 0.1.0's doubled
+  layout are migrated in place on first use (no re-download).
+
 ## 0.1.0 — 2026-07-19
 
 Initial release: complete Flutter bindings for FluidAudio 0.15.x (on-device

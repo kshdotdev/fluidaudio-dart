@@ -73,7 +73,13 @@ final class EouHostApiImpl: EouHostApi {
       do {
         let manager = StreamingEouAsrManager(
           chunkSize: Self.chunkSize(for: chunkSize), eouDebounceMs: Int(eouDebounceMs))
-        try await manager.loadModels(to: nil, configuration: nil, progressHandler: handler)
+        // Explicit models root: `to: nil` would resolve the manager's private
+        // default and double the `parakeet-eou-streaming` path segment; the
+        // explicit root keeps live sessions on the same canonical layout that
+        // ModelsHostApi downloads to and probes (see EouModelCache).
+        EouModelCache.migrateLegacyCache()
+        try await manager.loadModels(
+          to: EouModelCache.modelsRoot, configuration: nil, progressHandler: handler)
 
         let instance = EouInstance(manager: manager)
         let id = self.registry.add(instance)

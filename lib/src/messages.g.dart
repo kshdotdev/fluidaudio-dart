@@ -108,6 +108,7 @@ enum ModelKindMessage {
   vad,
   parakeetV2,
   parakeetV3,
+  eou,
 }
 
 enum DownloadPhaseMessage {

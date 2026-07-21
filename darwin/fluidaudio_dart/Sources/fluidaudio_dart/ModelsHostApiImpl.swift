@@ -19,6 +19,8 @@ final class ModelsHostApiImpl: ModelsHostApi {
     case .vad: return .vad
     case .parakeetV2: return .parakeetV2
     case .parakeetV3: return .parakeetV3
+    // ModelKind.eou manages the ms320 chunk variant — FluidEou.create's default.
+    case .eou: return .parakeetEou320
     }
   }
 
@@ -26,7 +28,7 @@ final class ModelsHostApiImpl: ModelsHostApi {
     switch kind {
     case .parakeetV2: return .v2
     case .parakeetV3: return .v3
-    case .vad: return nil
+    case .vad, .eou: return nil
     }
   }
 
@@ -34,6 +36,10 @@ final class ModelsHostApiImpl: ModelsHostApi {
     if let version = asrVersion(for: kind) {
       let directory = AsrModels.defaultCacheDirectory(for: version)
       completion(.success(AsrModels.modelsExist(at: directory, version: version)))
+      return
+    }
+    if kind == .eou {
+      completion(.success(EouModelCache.isDownloaded(repo(for: kind))))
       return
     }
     // VAD: the repo folder existing and being non-empty is the best public check.
@@ -52,6 +58,15 @@ final class ModelsHostApiImpl: ModelsHostApi {
       do {
         if let version = self.asrVersion(for: kind) {
           _ = try await AsrModels.download(version: version, progressHandler: handler)
+        } else if kind == .eou {
+          // Session-free download to the plugin's canonical EOU layout. The
+          // cache-hit guard (which also migrates any legacy doubled-layout
+          // cache) mirrors AsrModels.download: a present model is an instant
+          // no-op with no network listing, and keeps working in offline mode.
+          if !EouModelCache.isDownloaded(self.repo(for: kind)) {
+            try await ModelHub.download(
+              self.repo(for: kind), to: EouModelCache.modelsRoot, progressHandler: handler)
+          }
         } else {
           // VAD models download inside the manager's async init.
           _ = try await VadManager(config: .default, progressHandler: handler)
@@ -66,7 +81,12 @@ final class ModelsHostApiImpl: ModelsHostApi {
   }
 
   func remove(kind: ModelKindMessage, completion: @escaping (Result<Void, Error>) -> Void) {
-    let directory = MLModelConfigurationUtils.defaultModelsDirectory(for: repo(for: kind))
+    // For EOU, clear the whole family — every chunk variant plus any legacy
+    // doubled-layout residue — not just the ms320 repo folder.
+    let directory =
+      kind == .eou
+      ? EouModelCache.eouDirectory
+      : MLModelConfigurationUtils.defaultModelsDirectory(for: repo(for: kind))
     do {
       if FileManager.default.fileExists(atPath: directory.path) {
         try FileManager.default.removeItem(at: directory)

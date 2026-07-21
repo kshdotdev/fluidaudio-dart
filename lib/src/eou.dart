@@ -34,6 +34,10 @@ class FluidEou {
   int get channelInstanceId => _instanceId;
 
   /// Loads the EOU model (auto-downloads on first use; ~450 MB).
+  ///
+  /// To avoid blocking a live session on that first download, pre-fetch with
+  /// `FluidModels.download(ModelKind.eou)` (and probe with
+  /// `FluidModels.isDownloaded`); a session then starts from cache.
   static Future<FluidEou> create({
     EouChunkSize chunkSize = EouChunkSize.ms320,
     int eouDebounceMs = 1280,

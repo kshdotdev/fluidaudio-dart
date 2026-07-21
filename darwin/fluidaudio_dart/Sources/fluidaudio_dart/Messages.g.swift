@@ -195,6 +195,7 @@ enum ModelKindMessage: Int, CaseIterable {
   case vad = 0
   case parakeetV2 = 1
   case parakeetV3 = 2
+  case eou = 3
 }
 
 enum DownloadPhaseMessage: Int, CaseIterable {

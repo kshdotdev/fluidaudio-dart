@@ -4,7 +4,17 @@ import 'dart:typed_data';
 enum AsrVersion { v2, v3 }
 
 /// Downloadable model bundles.
-enum ModelKind { vad, parakeetV2, parakeetV3 }
+enum ModelKind {
+  vad,
+  parakeetV2,
+  parakeetV3,
+
+  /// The end-of-utterance streaming model (~450 MB), `ms320` chunk variant —
+  /// the default a `FluidEou.create` session loads. Pre-download it so live
+  /// turn detection can start without blocking on the network. `remove` clears
+  /// every chunk variant of the EOU cache, not just `ms320`.
+  eou,
+}
 
 /// Phase of a model download.
 enum DownloadPhase { listing, downloading, compiling, completed, failed }

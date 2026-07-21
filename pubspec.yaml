@@ -3,7 +3,7 @@ description: >-
   Flutter bindings for FluidAudio: on-device speech-to-text, voice activity
   detection, speaker diarization and text-to-speech on Apple platforms
   (CoreML / Apple Neural Engine).
-version: 0.1.0
+version: 0.2.0
 homepage: https://github.com/kshdotdev/fluidaudio-dart
 repository: https://github.com/kshdotdev/fluidaudio-dart
 topics:
