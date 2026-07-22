@@ -2981,15 +2981,17 @@ class MicrophoneHostApi {
   /// to the given sessions (no audio crosses the platform channel):
   /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
   /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
-  /// also published on the `micFrames` stream for UI.
-  Future<void> start(List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames) async {
+  /// also published on the `micFrames` stream for UI. A non-null
+  /// [recordToWavPath] additionally tees the same 16 kHz mono pipeline into a
+  /// WAV file at that path, written natively on the capture queue.
+  Future<void> start(List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames, String? recordToWavPath) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.start$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames, recordToWavPath]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(
@@ -3120,14 +3122,14 @@ class SystemAudioHostApi {
   /// [processIds] is empty, otherwise only the given PIDs — and fans the
   /// 16 kHz mono stream out natively to the given sessions, exactly like
   /// [MicrophoneHostApi.start].
-  Future<void> start(List<int> processIds, List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames) async {
+  Future<void> start(List<int> processIds, List<int> asrInstanceIds, List<int> eouInstanceIds, List<int> vadStreamIds, bool emitFrames, String? recordToWavPath) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.SystemAudioHostApi.start$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[processIds, asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[processIds, asrInstanceIds, eouInstanceIds, vadStreamIds, emitFrames, recordToWavPath]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

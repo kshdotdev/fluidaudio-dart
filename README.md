@@ -71,6 +71,13 @@ if (await system.isSupported && await system.requestPermission()) {
   system.health.listen((h) => print('capture: ${h.phase.name}'));
   await system.start(transcribers: [session]);
 }
+
+// Record a capture to WAV while it feeds live sessions (pure sink — the
+// 16 kHz mono ASR pipeline, written natively; finalized on stop()):
+await FluidMicrophone().start(
+  transcribers: [session],
+  recordToWavPath: '/tmp/meeting_mic.wav',
+);
 ```
 
 ## Requirements

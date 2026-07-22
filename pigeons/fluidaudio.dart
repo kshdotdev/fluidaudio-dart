@@ -637,13 +637,16 @@ abstract class MicrophoneHostApi {
   /// to the given sessions (no audio crosses the platform channel):
   /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
   /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
-  /// also published on the `micFrames` stream for UI.
+  /// also published on the `micFrames` stream for UI. A non-null
+  /// [recordToWavPath] additionally tees the same 16 kHz mono pipeline into a
+  /// WAV file at that path, written natively on the capture queue.
   @async
   void start(
     List<int> asrInstanceIds,
     List<int> eouInstanceIds,
     List<int> vadStreamIds,
     bool emitFrames,
+    String? recordToWavPath,
   );
 
   @async
@@ -747,6 +750,7 @@ abstract class SystemAudioHostApi {
     List<int> eouInstanceIds,
     List<int> vadStreamIds,
     bool emitFrames,
+    String? recordToWavPath,
   );
 
   @async

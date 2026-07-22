@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:fluidaudio_dart/fluidaudio_dart.dart';
@@ -28,6 +29,8 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
 
   String _status = 'idle';
   String _health = '';
+  bool _record = false;
+  String? _recordedPath;
   String _confirmed = '';
   String _volatile = '';
   double _probability = 0;
@@ -65,6 +68,10 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       _confirmed = '';
       _volatile = '';
     });
+    final wavPath = _record
+        ? '${Directory.systemTemp.path}/fluidaudio_'
+            '${DateTime.now().millisecondsSinceEpoch}.wav'
+        : null;
     try {
       final session = await FluidStreamingAsr.create();
       final vad = await FluidVad.create();
@@ -109,12 +116,14 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
         await _systemAudio.start(
           transcribers: [session],
           vadStreams: [vadStream],
+          recordToWavPath: wavPath,
         );
       } else {
         await session.start();
         await _microphone.start(
           transcribers: [session],
           vadStreams: [vadStream],
+          recordToWavPath: wavPath,
         );
       }
 
@@ -124,6 +133,7 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       if (!mounted) return;
       setState(() {
         _live = true;
+        _recordedPath = wavPath;
         _status = _source == _CaptureSource.systemAudio
             ? 'capturing system audio — play something!'
             : 'listening — speak!';
@@ -147,7 +157,9 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
       final transcript = await _session?.finish();
       setState(() {
         _live = false;
-        _status = 'stopped';
+        _status = _recordedPath == null
+            ? 'stopped'
+            : 'stopped — WAV: $_recordedPath';
         _health = '';
         if (transcript != null && transcript.isNotEmpty) {
           _confirmed = transcript;
@@ -202,6 +214,14 @@ class _LiveMicTabState extends State<LiveMicTab> with AutomaticKeepAliveClientMi
                         : _start,
                 icon: Icon(_live ? Icons.stop : Icons.mic),
                 label: Text(_live ? 'Stop' : 'Start'),
+              ),
+              const SizedBox(width: 12),
+              FilterChip(
+                label: const Text('Record WAV'),
+                selected: _record,
+                onSelected: _live || _busy
+                    ? null
+                    : (selected) => setState(() => _record = selected),
               ),
               const SizedBox(width: 16),
               Expanded(child: LinearProgressIndicator(value: _probability)),

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — 2026-07-22
+
+**Capture**
+- `recordToWavPath` on `FluidMicrophone.start` and `FluidSystemAudio.start` —
+  tees the capture into a WAV file while the same stream feeds every live
+  attachment (streaming ASR, EOU, VAD, frames). Written natively on the
+  capture queue, so audio still never crosses the platform channel; the file
+  records the ASR-grade 16 kHz mono pipeline as 16-bit PCM and is finalized
+  on `stop()`. Pure sink semantics: recording never starts or stops the
+  capture, survives the system-audio watchdog's chain rebuild, and an
+  unwritable path fails `start` loudly. File naming, rotation and retention
+  stay with the caller.
+
 ## 0.2.0 — 2026-07-20
 
 **Models**

@@ -44,11 +44,21 @@ class FluidMicrophone {
   /// Starts capture, feeding the given sessions natively:
   /// [transcribers] receive the stream as `streamAudio`, [turnDetectors] as
   /// EOU processing, [vadStreams] as exact 4096-sample chunks.
+  ///
+  /// A non-null [recordToWavPath] additionally tees the capture into a WAV
+  /// file at that path — written natively on the capture queue, so audio
+  /// still never crosses the platform channel, and recording coexists with
+  /// every live attachment. Pure sink semantics: it never starts or stops the
+  /// capture, and the file is finalized on [stop]. The written stream is the
+  /// ASR-grade 16 kHz mono pipeline (16-bit PCM WAV); archival fidelity would
+  /// need a pre-resample tap, which this library does not provide. Naming,
+  /// rotation and retention are the caller's concern.
   Future<void> start({
     List<FluidStreamingAsr> transcribers = const [],
     List<FluidEou> turnDetectors = const [],
     List<FluidVadStream> vadStreams = const [],
     bool emitFrames = false,
+    String? recordToWavPath,
   }) {
     return wrapPlatformErrors(
       () => _hostApi.start(
@@ -56,6 +66,7 @@ class FluidMicrophone {
         [for (final session in turnDetectors) session.channelInstanceId],
         [for (final stream in vadStreams) stream.channelInstanceId],
         emitFrames,
+        recordToWavPath,
       ),
     );
   }

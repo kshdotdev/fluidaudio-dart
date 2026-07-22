@@ -2924,8 +2924,10 @@ protocol MicrophoneHostApi {
   /// to the given sessions (no audio crosses the platform channel):
   /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
   /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
-  /// also published on the `micFrames` stream for UI.
-  func start(asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  /// also published on the `micFrames` stream for UI. A non-null
+  /// [recordToWavPath] additionally tees the same 16 kHz mono pipeline into a
+  /// WAV file at that path, written natively on the capture queue.
+  func start(asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, recordToWavPath: String?, completion: @escaping (Result<Void, Error>) -> Void)
   func stop(completion: @escaping (Result<Void, Error>) -> Void)
   func isRunning(completion: @escaping (Result<Bool, Error>) -> Void)
 }
@@ -2940,7 +2942,9 @@ class MicrophoneHostApiSetup {
     /// to the given sessions (no audio crosses the platform channel):
     /// streaming-ASR sessions get `streamAudio`, EOU sessions get `process`,
     /// VAD streams get exact 4096-sample chunks. With [emitFrames], frames are
-    /// also published on the `micFrames` stream for UI.
+    /// also published on the `micFrames` stream for UI. A non-null
+    /// [recordToWavPath] additionally tees the same 16 kHz mono pipeline into a
+    /// WAV file at that path, written natively on the capture queue.
     let startChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.MicrophoneHostApi.start\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       startChannel.setMessageHandler { message, reply in
@@ -2949,7 +2953,8 @@ class MicrophoneHostApiSetup {
         let eouInstanceIdsArg = args[1] as! [Int64]
         let vadStreamIdsArg = args[2] as! [Int64]
         let emitFramesArg = args[3] as! Bool
-        api.start(asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg) { result in
+        let recordToWavPathArg: String? = nilOrValue(args[4])
+        api.start(asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg, recordToWavPath: recordToWavPathArg) { result in
           switch result {
           case .success:
             reply(wrapResult(nil))
@@ -3010,7 +3015,7 @@ protocol SystemAudioHostApi {
   /// [processIds] is empty, otherwise only the given PIDs — and fans the
   /// 16 kHz mono stream out natively to the given sessions, exactly like
   /// [MicrophoneHostApi.start].
-  func start(processIds: [Int64], asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, completion: @escaping (Result<Void, Error>) -> Void)
+  func start(processIds: [Int64], asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool, recordToWavPath: String?, completion: @escaping (Result<Void, Error>) -> Void)
   func stop(completion: @escaping (Result<Void, Error>) -> Void)
   func isRunning(completion: @escaping (Result<Bool, Error>) -> Void)
 }
@@ -3087,7 +3092,8 @@ class SystemAudioHostApiSetup {
         let eouInstanceIdsArg = args[2] as! [Int64]
         let vadStreamIdsArg = args[3] as! [Int64]
         let emitFramesArg = args[4] as! Bool
-        api.start(processIds: processIdsArg, asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg) { result in
+        let recordToWavPathArg: String? = nilOrValue(args[5])
+        api.start(processIds: processIdsArg, asrInstanceIds: asrInstanceIdsArg, eouInstanceIds: eouInstanceIdsArg, vadStreamIds: vadStreamIdsArg, emitFrames: emitFramesArg, recordToWavPath: recordToWavPathArg) { result in
           switch result {
           case .success:
             reply(wrapResult(nil))

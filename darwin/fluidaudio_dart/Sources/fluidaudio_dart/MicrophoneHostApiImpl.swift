@@ -54,15 +54,29 @@ final class AudioFanout {
   private let frames: FrameEmitting
   private let vadEvents: VadEventsHandler
 
+  /// Optional WAV tee. Lives on the fan-out so it survives the system-audio
+  /// watchdog's chain rebuild; only [closeWav] (from a real capture stop)
+  /// finalizes the file.
+  private let wav: WavSink?
+
   /// Watchdog counters: written from the serial dispatch context, read from
   /// the watchdog task.
   private let stats = OSAllocatedUnfairLock(initialState: (callbacks: 0, nonZeroFrames: 0))
 
-  init(attachments: Attachments, frames: FrameEmitting, vadEvents: VadEventsHandler) {
+  init(
+    attachments: Attachments, frames: FrameEmitting, vadEvents: VadEventsHandler,
+    wav: WavSink? = nil
+  ) {
     self.attachments = attachments
     self.chunkers = attachments.vad.map { _ in SampleChunker(chunkSize: VadManager.chunkSize) }
     self.frames = frames
     self.vadEvents = vadEvents
+    self.wav = wav
+  }
+
+  /// Finalizes the WAV tee, if any. Idempotent.
+  func closeWav() {
+    wav?.close()
   }
 
   var snapshot: (callbacks: Int, nonZeroFrames: Int) {
@@ -80,6 +94,9 @@ final class AudioFanout {
       $0.callbacks += 1
       $0.nonZeroFrames += nonZero
     }
+    // File first, consumers after: recording completeness never depends on
+    // downstream sessions keeping up (the reference recorder's contract).
+    wav?.write(samples)
     if attachments.emitFrames {
       frames.emit(samples: samples)
     }
@@ -170,6 +187,7 @@ final class MicCapture {
   private let engine = AVAudioEngine()
   private let queue = SerialTaskQueue()
   private var watchdogTask: Task<Void, Never>?
+  private var fanout: AudioFanout?
 
   /// Read on the real-time audio thread, written from the platform thread —
   /// must be lock-protected (plain Bool access across threads is a data race).
@@ -189,7 +207,8 @@ final class MicCapture {
     attachments: Attachments,
     frames: MicFramesHandler,
     vadEvents: VadEventsHandler,
-    health: CaptureHealthHandler
+    health: CaptureHealthHandler,
+    wavSink: WavSink? = nil
   ) throws {
     #if os(iOS)
       let session = AVAudioSession.sharedInstance()
@@ -197,7 +216,9 @@ final class MicCapture {
       try session.setActive(true)
     #endif
 
-    let fanout = AudioFanout(attachments: attachments, frames: frames, vadEvents: vadEvents)
+    let fanout = AudioFanout(
+      attachments: attachments, frames: frames, vadEvents: vadEvents, wav: wavSink)
+    self.fanout = fanout
     let input = engine.inputNode
     let format = input.outputFormat(forBus: 0)
     // One converter per session: resampler filter state must carry across
@@ -262,6 +283,10 @@ final class MicCapture {
     engine.inputNode.removeTap(onBus: 0)
     engine.stop()
     queue.shutdown()
+    // After the queue is down no more dispatches start; the sink's own lock
+    // covers any straggler already mid-dispatch.
+    fanout?.closeWav()
+    fanout = nil
     #if os(iOS)
       try? AVAudioSession.sharedInstance().setActive(
         false, options: .notifyOthersOnDeactivation)
@@ -303,6 +328,7 @@ final class MicrophoneHostApiImpl: MicrophoneHostApi {
 
   func start(
     asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64], emitFrames: Bool,
+    recordToWavPath: String?,
     completion: @escaping (Result<Void, Error>) -> Void
   ) {
     if capture?.running == true {
@@ -340,17 +366,23 @@ final class MicrophoneHostApiImpl: MicrophoneHostApi {
     }
 
     let newCapture = MicCapture()
+    var wavSink: WavSink?
     do {
+      // An unwritable path fails the start loudly — the caller asked for a
+      // recording, so a silent no-record would be worse than an error.
+      wavSink = try recordToWavPath.map { try WavSink(path: $0) }
       try newCapture.start(
         attachments: MicCapture.Attachments(
           asr: asr, eou: eou, vad: vad, emitFrames: emitFrames),
         frames: frames,
         vadEvents: vadEvents,
-        health: health
+        health: health,
+        wavSink: wavSink
       )
       capture = newCapture
       completion(.success(()))
     } catch {
+      wavSink?.close()
       completion(.failure(ErrorMapping.map(error)))
     }
   }

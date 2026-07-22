@@ -18,6 +18,7 @@ class _FakeSystemAudioHostApi implements messages.SystemAudioHostApi {
 
   List<int>? lastProcessIds;
   List<int>? lastAsrIds;
+  String? lastRecordToWavPath;
   bool running = false;
 
   @override
@@ -34,9 +35,10 @@ class _FakeSystemAudioHostApi implements messages.SystemAudioHostApi {
 
   @override
   Future<void> start(List<int> processIds, List<int> asrInstanceIds, List<int> eouInstanceIds,
-      List<int> vadStreamIds, bool emitFrames) async {
+      List<int> vadStreamIds, bool emitFrames, String? recordToWavPath) async {
     lastProcessIds = processIds;
     lastAsrIds = asrInstanceIds;
+    lastRecordToWavPath = recordToWavPath;
     running = true;
   }
 
@@ -192,6 +194,27 @@ void main() {
     await micSubscription.cancel();
     await rawHealth.close();
   });
+
+  test('recordToWavPath plumbs through both captures and defaults to null',
+      () async {
+    final hub = FluidEventHub.test(downloadProgress: const Stream.empty());
+
+    final systemFake = _FakeSystemAudioHostApi();
+    final systemAudio = FluidSystemAudio(hostApi: systemFake, events: hub);
+    await systemAudio.start(recordToWavPath: '/tmp/session_app.wav');
+    expect(systemFake.lastRecordToWavPath, '/tmp/session_app.wav');
+    await systemAudio.stop();
+    await systemAudio.start();
+    expect(systemFake.lastRecordToWavPath, isNull);
+
+    final micFake = _FakeMicrophoneHostApi();
+    final microphone = FluidMicrophone(hostApi: micFake, events: hub);
+    await microphone.start(recordToWavPath: '/tmp/session_mic.wav');
+    expect(micFake.lastRecordToWavPath, '/tmp/session_mic.wav');
+    await microphone.stop();
+    await microphone.start();
+    expect(micFake.lastRecordToWavPath, isNull);
+  });
 }
 
 class _FakeMicrophoneHostApi implements messages.MicrophoneHostApi {
@@ -203,9 +226,13 @@ class _FakeMicrophoneHostApi implements messages.MicrophoneHostApi {
   // ignore: non_constant_identifier_names
   final String pigeonVar_messageChannelSuffix = '';
 
+  String? lastRecordToWavPath;
+
   @override
   Future<void> start(List<int> asrInstanceIds, List<int> eouInstanceIds,
-      List<int> vadStreamIds, bool emitFrames) async {}
+      List<int> vadStreamIds, bool emitFrames, String? recordToWavPath) async {
+    lastRecordToWavPath = recordToWavPath;
+  }
 
   @override
   Future<void> stop() async {}

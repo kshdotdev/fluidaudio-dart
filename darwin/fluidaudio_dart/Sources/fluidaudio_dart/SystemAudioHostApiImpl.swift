@@ -59,6 +59,7 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
     private var ioProcID: AudioDeviceIOProcID?
+    private var fanout: AudioFanout?
 
     var running: Bool {
       runningState.withLock { $0 }
@@ -72,6 +73,10 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       lifecycleLock.lock()
       defer { lifecycleLock.unlock() }
       try startChainLocked(processIds: processIds, fanout: fanout)
+      // Retained so the real stop paths can finalize the WAV tee; the
+      // watchdog's chain rebuild deliberately keeps the same fan-out (and
+      // thus the same open file).
+      self.fanout = fanout
       runningState.withLock { $0 = true }
 
       // Self-test (ectos pattern): if the first window shows no real audio,
@@ -176,6 +181,8 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       } catch {
         runningState.withLock { $0 = false }
         fanoutQueue.shutdown()
+        fanout.closeWav()
+        self.fanout = nil
         return .failed(error)
       }
     }
@@ -194,6 +201,8 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       guard wasRunning else { return }
       teardownChainLocked()
       fanoutQueue.shutdown()
+      self.fanout?.closeWav()
+      self.fanout = nil
     }
 
     private func startChainLocked(processIds: [Int64], fanout: AudioFanout) throws {
@@ -332,6 +341,8 @@ final class SystemAudioFramesHandler: SystemAudioFramesStreamHandler, FrameEmitt
       watchdogTask = nil
       teardownChainLocked()
       fanoutQueue.shutdown()
+      fanout?.closeWav()
+      fanout = nil
     }
 
     private func unwind() {
@@ -516,7 +527,8 @@ final class SystemAudioHostApiImpl: SystemAudioHostApi {
 
   func start(
     processIds: [Int64], asrInstanceIds: [Int64], eouInstanceIds: [Int64], vadStreamIds: [Int64],
-    emitFrames: Bool, completion: @escaping (Result<Void, Error>) -> Void
+    emitFrames: Bool, recordToWavPath: String?,
+    completion: @escaping (Result<Void, Error>) -> Void
   ) {
     #if os(macOS)
       if #available(macOS 14.4, *) {
@@ -554,18 +566,24 @@ final class SystemAudioHostApiImpl: SystemAudioHostApi {
           vad.append((id: id, instance: instance))
         }
 
-        let fanout = AudioFanout(
-          attachments: AudioFanout.Attachments(
-            asr: asr, eou: eou, vad: vad, emitFrames: emitFrames),
-          frames: frames,
-          vadEvents: vadEvents
-        )
-        let newCapture = SystemAudioCapture()
+        var wavSink: WavSink?
         do {
+          // An unwritable path fails the start loudly — the caller asked for
+          // a recording, so a silent no-record would be worse than an error.
+          wavSink = try recordToWavPath.map { try WavSink(path: $0) }
+          let fanout = AudioFanout(
+            attachments: AudioFanout.Attachments(
+              asr: asr, eou: eou, vad: vad, emitFrames: emitFrames),
+            frames: frames,
+            vadEvents: vadEvents,
+            wav: wavSink
+          )
+          let newCapture = SystemAudioCapture()
           try newCapture.start(processIds: processIds, fanout: fanout, health: health)
           capture = newCapture
           completion(.success(()))
         } catch {
+          wavSink?.close()
           completion(.failure(ErrorMapping.map(error)))
         }
         return
