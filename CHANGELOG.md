@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 — 2026-07-26
+
+**Fixes**
+- Correct the CocoaPods fallback package version and constrain FluidAudio to
+  the supported `0.15.x` line.
+- Cover explicit microphone and system-audio startup source forwarding.
+
 ## 0.3.0 — 2026-07-22
 
 **Capture**

@@ -8,12 +8,12 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'fluidaudio_dart'
-  s.version          = '0.1.0'
+  s.version          = '0.3.1'
   s.summary          = 'Flutter bindings for FluidAudio: on-device ASR, VAD, diarization and TTS (CoreML/ANE).'
   s.description      = <<-DESC
 Flutter/Dart bindings for the FluidAudio Swift library. On-device speech-to-text
-(Parakeet, Qwen3), voice activity detection, speaker diarization, and text-to-speech
-on Apple platforms via CoreML and the Apple Neural Engine.
+(Parakeet), voice activity detection, speaker diarization, and text-to-speech on
+Apple platforms via CoreML and the Apple Neural Engine.
                        DESC
   s.homepage         = 'https://github.com/kshdotdev/fluidaudio-dart'
   s.license          = { :file => '../LICENSE' }
@@ -22,7 +22,7 @@ on Apple platforms via CoreML and the Apple Neural Engine.
   s.source_files     = 'fluidaudio_dart/Sources/fluidaudio_dart/**/*.swift'
   s.ios.dependency 'Flutter'
   s.osx.dependency 'FlutterMacOS'
-  s.dependency 'FluidAudio', '>= 0.15.5'
+  s.dependency 'FluidAudio', '>= 0.15.5', '< 0.16.0'
   s.ios.deployment_target = '17.0'
   s.osx.deployment_target = '14.0'
 
