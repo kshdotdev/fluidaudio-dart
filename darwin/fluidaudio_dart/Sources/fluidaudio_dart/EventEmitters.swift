@@ -161,4 +161,28 @@ enum TypeMapping {
       tokenTimings: result.tokenTimings.map { $0.map(tokenTiming) }
     )
   }
+
+  /// Inverse of `tokenTiming(_:)`, for results Dart hands back for a further
+  /// native pass (ITN, vocabulary rescoring).
+  static func tokenTiming(from message: TokenTimingMessage) -> TokenTiming {
+    TokenTiming(
+      token: message.token,
+      tokenId: Int(message.tokenId),
+      startTime: message.startSeconds,
+      endTime: message.endSeconds,
+      confidence: Float(message.confidence)
+    )
+  }
+
+  /// Inverse of `asrResult(_:)`. `performanceMetrics` and the CTC term lists
+  /// are not carried on the wire, so they come back nil.
+  static func asrResult(from message: AsrResultMessage) -> ASRResult {
+    ASRResult(
+      text: message.text,
+      confidence: Float(message.confidence),
+      duration: message.durationSeconds,
+      processingTime: message.processingSeconds,
+      tokenTimings: message.tokenTimings.map { $0.map(tokenTiming(from:)) }
+    )
+  }
 }

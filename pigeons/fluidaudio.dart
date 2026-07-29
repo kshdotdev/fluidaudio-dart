@@ -66,8 +66,19 @@ abstract class SystemHostApi {
 /// Parakeet model generations exposed to Dart.
 enum AsrVersionMessage { v2, v3 }
 
-/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
-enum ModelKindMessage { vad, parakeetV2, parakeetV3, eou }
+/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per
+/// milestone). Dart's `ModelKind` maps onto this enum **by ordinal index**, so
+/// both declarations are append-only — see `test/model_kind_parity_test.dart`.
+enum ModelKindMessage {
+  vad,
+  parakeetV2,
+  parakeetV3,
+  eou,
+  diarizer,
+  ctc110m,
+  kokoro,
+  pocketTts,
+}
 
 enum DownloadPhaseMessage { listing, downloading, compiling, completed, failed }
 
@@ -476,6 +487,29 @@ class VocabularyTermMessage {
   List<String>? aliases;
 }
 
+/// Outcome of rescoring a finished batch transcription against a vocabulary.
+class VocabularyRescoreMessage {
+  VocabularyRescoreMessage({
+    required this.result,
+    required this.wasModified,
+    required this.detectedTerms,
+    required this.appliedTerms,
+  });
+
+  /// The rescored result, or the input unchanged when nothing was replaced.
+  /// Token timings are carried through untouched — replacements are
+  /// word-for-word, so the original alignment stays valid.
+  AsrResultMessage result;
+
+  bool wasModified;
+
+  /// Terms the CTC spotter found in the audio (replacement candidates).
+  List<String> detectedTerms;
+
+  /// Terms actually written into [result].
+  List<String> appliedTerms;
+}
+
 @HostApi()
 abstract class CtcVocabularyHostApi {
   /// Downloads/loads the CTC-110M spotter models, tokenizes [terms], and
@@ -483,6 +517,19 @@ abstract class CtcVocabularyHostApi {
   /// [StreamingAsrHostApi.configureVocabulary].
   @async
   int load(List<VocabularyTermMessage> terms, double minSimilarity, int progressToken);
+
+  /// Rescores a finished batch transcription: runs the CTC keyword spotter
+  /// over the same 16 kHz mono float32 samples, then rewrites low-confidence
+  /// words against this vocabulary using the cached log-probabilities.
+  /// [defaultWeight] is the context-biasing weight applied to terms loaded
+  /// without an explicit one. Requires [result] to carry token timings.
+  @async
+  VocabularyRescoreMessage rescoreResult(
+    int instanceId,
+    AsrResultMessage result,
+    Uint8List float32Samples,
+    double defaultWeight,
+  );
 
   @async
   void dispose(int instanceId);
@@ -502,6 +549,12 @@ abstract class ItnHostApi {
   /// Sliding-window normalization across a full sentence.
   @async
   String normalizeSentence(String text, int? maxSpanTokens);
+
+  /// Sentence-mode normalization of a whole ASR result, keeping the token
+  /// timings coherent (ITN and word timings can coexist). Returns the input
+  /// unchanged when normalization is a no-op.
+  @async
+  AsrResultMessage normalizeResult(AsrResultMessage result);
 
   @async
   void addRule(String spoken, String written);

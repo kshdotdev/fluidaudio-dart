@@ -187,6 +187,29 @@ FluidAsrResult mapAsrResult(messages.AsrResultMessage result) {
   );
 }
 
+/// Inverse of [mapTokenTiming], for results handed back to the native side.
+messages.TokenTimingMessage tokenTimingMessage(FluidTokenTiming timing) {
+  return messages.TokenTimingMessage(
+    token: timing.token,
+    tokenId: timing.tokenId,
+    startSeconds: timing.start.inMicroseconds / 1e6,
+    endSeconds: timing.end.inMicroseconds / 1e6,
+    confidence: timing.confidence,
+  );
+}
+
+/// Inverse of [mapAsrResult], for a further native pass over a finished
+/// result (ITN, vocabulary rescoring).
+messages.AsrResultMessage asrResultMessage(FluidAsrResult result) {
+  return messages.AsrResultMessage(
+    text: result.text,
+    confidence: result.confidence,
+    durationSeconds: result.duration.inMicroseconds / 1e6,
+    processingSeconds: result.processingTime.inMicroseconds / 1e6,
+    tokenTimings: result.tokenTimings?.map(tokenTimingMessage).toList(),
+  );
+}
+
 FluidDownloadProgress mapDownloadProgress(messages.DownloadProgressMessage event) {
   return FluidDownloadProgress(
     fraction: event.fraction,
