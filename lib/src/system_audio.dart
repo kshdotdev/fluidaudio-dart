@@ -44,6 +44,15 @@ class FluidAudioProcess {
 /// - an unsandboxed app, or the appropriate sandbox exceptions
 ///
 /// Note: a process only becomes tappable by PID once it has opened audio.
+///
+/// **Deprecated**: production capture (including process enumeration and the
+/// tap lifecycle) belongs to `package:audio_flutter`. The exception is the
+/// *native fan-out* into [FluidStreamingAsr]/[FluidEou]/[FluidVadStream],
+/// which `audio_flutter` cannot do — it delivers frames to Dart, so those
+/// routes pay a channel hop per buffer. The session-side `feed` APIs are not
+/// deprecated; only the capture in front of them is.
+@Deprecated(
+    'Production capture moved to package:audio_flutter — this 0.x compatibility surface will be removed at 1.0')
 class FluidSystemAudio {
   FluidSystemAudio({
     @visibleForTesting messages.SystemAudioHostApi? hostApi,
@@ -98,6 +107,8 @@ class FluidSystemAudio {
     List<FluidEou> turnDetectors = const [],
     List<FluidVadStream> vadStreams = const [],
     bool emitFrames = false,
+    @Deprecated(
+        'Production capture moved to package:audio_flutter — this 0.x compatibility surface will be removed at 1.0')
     String? recordToWavPath,
   }) {
     return wrapPlatformErrors(

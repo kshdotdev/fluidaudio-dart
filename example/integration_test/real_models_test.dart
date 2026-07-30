@@ -257,5 +257,96 @@ void main() {
       expect(transcript.toLowerCase(), contains('hello'));
       expect(partials, isNotEmpty, reason: 'partial callbacks must stream');
     }, timeout: const Timeout(Duration(minutes: 5)));
+
+    testWidgets('batch vocabulary rescoring rewrites a finished transcript',
+        (tester) async {
+      final vocabulary = await FluidCtcVocabulary.load(
+        terms: const [FluidVocabularyTerm('FluidAudio'), FluidVocabularyTerm('Parakeet')],
+      );
+      addTearDown(vocabulary.dispose);
+
+      final raw = await asr.transcribe(helloSamples);
+      expect(raw.tokenTimings, isNotEmpty, reason: 'rescoring aligns through timings');
+
+      final rescored = await vocabulary.rescore(raw, helloSamples);
+      // The clip has no vocabulary term in it, so the guard that matters is
+      // that rescoring is non-destructive: it either leaves the transcript
+      // alone or replaces words with vocabulary terms — never garbage.
+      expect(rescored.appliedTerms.every((term) => rescored.result.text.contains(term)),
+          isTrue);
+      if (!rescored.wasModified) {
+        expect(rescored.result.text, raw.text);
+        expect(rescored.appliedTerms, isEmpty);
+      }
+      // Token timings survive the pass in both branches.
+      expect(rescored.result.tokenTimings, hasLength(raw.tokenTimings!.length));
+    }, timeout: const Timeout(Duration(minutes: 10)));
+
+    testWidgets('ITN result overload keeps token timings attached', (tester) async {
+      final itn = FluidItn();
+      final raw = await asr.transcribe(helloSamples);
+      final normalized = await itn.normalizeResult(raw);
+
+      expect(normalized.tokenTimings, hasLength(raw.tokenTimings!.length));
+      expect(normalized.duration, raw.duration);
+      expect(normalized.confidence, raw.confidence);
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
+    // Every kind this suite actually warms. `parakeetV2` is deliberately out:
+    // nothing here loads it and probing it is meaningless, while downloading
+    // it would add ~600 MB to the nightly.
+    const warmedKinds = [
+      ModelKind.parakeetV3,
+      ModelKind.vad,
+      ModelKind.eou,
+      ModelKind.diarizer,
+      ModelKind.ctc110m,
+      ModelKind.kokoro,
+      ModelKind.pocketTts,
+    ];
+
+    testWidgets('every warmed ModelKind probes and reports a cache directory',
+        (tester) async {
+      final models = FluidModels();
+      // Sessions earlier in this suite pulled each of these; the probe is the
+      // assertion that ModelsHostApiImpl looks in the same place the loader
+      // wrote to — the TTS backends cache under a different root.
+      for (final kind in warmedKinds) {
+        expect(await models.isDownloaded(kind), isTrue, reason: '${kind.name} probe');
+        final directory = await models.cacheDirectory(kind);
+        expect(directory.toLowerCase(), contains('fluidaudio'),
+            reason: '${kind.name} cache directory: $directory');
+        expect(Directory(directory).existsSync(), isTrue,
+            reason: '${kind.name} cache directory does not exist: $directory');
+      }
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
+    testWidgets('download is a fast no-op on a warm cache', (tester) async {
+      final models = FluidModels();
+      // Exercises the whole native download switch (including the diarizer's
+      // "offline" variant) without re-pulling gigabytes: a present model must
+      // complete without listing the remote repo.
+      for (final kind in warmedKinds) {
+        await models.download(kind).toList();
+        expect(await models.isDownloaded(kind), isTrue, reason: '${kind.name} after download');
+      }
+    }, timeout: const Timeout(Duration(minutes: 30)));
+
+    testWidgets('remove then download round-trips the CTC-110M cache',
+        (tester) async {
+      // Only the cheapest kind is round-tripped for real (~100 MB). The other
+      // bundles run to 800 MB each; deleting and re-pulling them on every
+      // nightly is not worth the bandwidth, so they stay probe-only above.
+      final models = FluidModels();
+      final directory = await models.cacheDirectory(ModelKind.ctc110m);
+
+      await models.remove(ModelKind.ctc110m);
+      expect(await models.isDownloaded(ModelKind.ctc110m), isFalse);
+      expect(Directory(directory).existsSync(), isFalse);
+
+      final progress = await models.download(ModelKind.ctc110m).toList();
+      expect(progress, isNotEmpty, reason: 'a cold download must report progress');
+      expect(await models.isDownloaded(ModelKind.ctc110m), isTrue);
+    }, timeout: const Timeout(Duration(minutes: 20)));
   });
 }

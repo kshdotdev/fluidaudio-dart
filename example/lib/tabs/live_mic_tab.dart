@@ -1,3 +1,8 @@
+// This tab is the demo for the deprecated 0.x capture surface itself — it has
+// to keep exercising FluidMicrophone/FluidSystemAudio until they are removed
+// at 1.0. Production apps should capture with package:audio_flutter.
+// ignore_for_file: deprecated_member_use
+
 import 'dart:async';
 import 'dart:io';
 

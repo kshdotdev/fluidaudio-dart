@@ -6,7 +6,8 @@ library;
 export 'src/asr.dart' show FluidAsr;
 export 'src/audio_converter.dart' show FluidAudioConverter;
 export 'src/capture_health.dart' show CaptureHealthPhase, FluidCaptureHealth;
-export 'src/ctc_vocabulary.dart' show FluidCtcVocabulary, FluidVocabularyTerm;
+export 'src/ctc_vocabulary.dart'
+    show FluidCtcVocabulary, FluidVocabularyRescore, FluidVocabularyTerm;
 export 'src/diarizer.dart'
     show
         FluidChunkEmbedding,

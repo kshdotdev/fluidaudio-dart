@@ -8,7 +8,7 @@
 #
 Pod::Spec.new do |s|
   s.name             = 'fluidaudio_dart'
-  s.version          = '0.3.1'
+  s.version          = '0.4.0'
   s.summary          = 'Flutter bindings for FluidAudio: on-device ASR, VAD, diarization and TTS (CoreML/ANE).'
   s.description      = <<-DESC
 Flutter/Dart bindings for the FluidAudio Swift library. On-device speech-to-text

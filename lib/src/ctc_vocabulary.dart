@@ -1,5 +1,8 @@
+import 'dart:typed_data';
+
 import 'package:meta/meta.dart';
 
+import 'audio_bytes.dart';
 import 'events.dart';
 import 'exceptions.dart';
 import 'messages.g.dart' as messages;
@@ -10,14 +13,45 @@ class FluidVocabularyTerm {
   const FluidVocabularyTerm(this.text, {this.weight, this.aliases});
 
   final String text;
+
+  /// Context-biasing weight for this term. When null,
+  /// [FluidCtcVocabulary.rescore]'s `weight` applies.
   final double? weight;
+
   final List<String>? aliases;
 }
 
-/// A custom vocabulary for boosting domain terms (names, jargon) during
-/// streaming transcription, backed by the CTC-110M keyword spotter.
+/// The outcome of [FluidCtcVocabulary.rescore].
+class FluidVocabularyRescore {
+  const FluidVocabularyRescore({
+    required this.result,
+    required this.wasModified,
+    required this.detectedTerms,
+    required this.appliedTerms,
+  });
+
+  /// The rescored transcription, or the input unchanged when
+  /// [wasModified] is false.
+  final FluidAsrResult result;
+
+  final bool wasModified;
+
+  /// Terms the CTC spotter found in the audio (replacement candidates).
+  final List<String> detectedTerms;
+
+  /// Terms actually written into [result].
+  final List<String> appliedTerms;
+}
+
+/// A custom vocabulary for boosting domain terms (names, jargon), backed by
+/// the CTC-110M keyword spotter.
 ///
-/// Pass to [FluidStreamingAsr.configureVocabulary] before starting the stream.
+/// Two routes use it:
+/// - streaming — pass to `FluidStreamingAsr.configureVocabulary` before
+///   starting the stream; terms are boosted while decoding;
+/// - batch — [rescore] a finished `FluidAsr.transcribe` result against the
+///   same audio; there is no decoding left to bias, so the spotter's CTC
+///   log-probabilities are used to rewrite low-confidence words instead.
 class FluidCtcVocabulary {
   FluidCtcVocabulary._(this._hostApi, this.instanceId);
 
@@ -58,6 +92,43 @@ class FluidCtcVocabulary {
     } finally {
       await subscription?.cancel();
     }
+  }
+
+  /// Rescores a finished batch transcription against this vocabulary.
+  ///
+  /// [samples] must be the same 16 kHz mono float32 audio [result] was
+  /// transcribed from: the CTC spotter re-runs over it to obtain the
+  /// log-probabilities that decide whether a vocabulary term has more
+  /// acoustic evidence than the word the decoder emitted. [weight] is the
+  /// context-biasing weight for terms loaded without their own
+  /// ([FluidVocabularyTerm.weight]); 10.0 is the aggressive default the batch
+  /// route uses.
+  ///
+  /// [result] must carry [FluidAsrResult.tokenTimings] — replacements are
+  /// aligned through them. Without timings (or when nothing beat the
+  /// original transcript) the input is returned with
+  /// [FluidVocabularyRescore.wasModified] false. The timings are carried
+  /// through untouched: replacements are word-for-word, so the original
+  /// alignment stays valid.
+  Future<FluidVocabularyRescore> rescore(
+    FluidAsrResult result,
+    Float32List samples, {
+    double weight = 10.0,
+  }) async {
+    final rescored = await wrapPlatformErrors(
+      () => _hostApi.rescoreResult(
+        instanceId,
+        asrResultMessage(result),
+        floatsToBytes(samples),
+        weight,
+      ),
+    );
+    return FluidVocabularyRescore(
+      result: mapAsrResult(rescored.result),
+      wasModified: rescored.wasModified,
+      detectedTerms: rescored.detectedTerms,
+      appliedTerms: rescored.appliedTerms,
+    );
   }
 
   Future<void> dispose() async {

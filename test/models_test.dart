@@ -58,7 +58,8 @@ void main() {
   group('FluidModels', () {
     test('maps every ModelKind to the pigeon enum by index', () async {
       // The bridge in FluidModels maps by index; the two enums must stay in
-      // identical order (this pins the newly-added eou case too).
+      // identical order. `test/model_kind_parity_test.dart` is the dedicated
+      // guard for that invariant — this asserts the facade honours it.
       expect(
         ModelKind.values.map((kind) => kind.name),
         messages.ModelKindMessage.values.map((kind) => kind.name),
@@ -179,10 +180,15 @@ void main() {
       final api = _FakeModelsHostApi();
       final models = FluidModels(hostApi: api, events: FluidEventHub.test());
 
-      await models.remove(ModelKind.eou);
-      expect(api.removedKinds, [messages.ModelKindMessage.eou]);
-
-      expect(await models.cacheDirectory(ModelKind.vad), '/models/vad');
+      // Every kind, so an appended case cannot be half-wired.
+      for (final kind in ModelKind.values) {
+        await models.remove(kind);
+        expect(await models.cacheDirectory(kind), '/models/${kind.name}');
+      }
+      expect(
+        api.removedKinds.map((kind) => kind.name),
+        ModelKind.values.map((kind) => kind.name),
+      );
 
       await models.setOfflineMode(true);
       expect(api.offlineMode, isTrue);

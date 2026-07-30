@@ -4,6 +4,11 @@ import 'dart:typed_data';
 enum AsrVersion { v2, v3 }
 
 /// Downloadable model bundles.
+///
+/// Bridged to the pigeon enum **by ordinal index**, so this declaration is
+/// append-only: never reorder or remove a case (see
+/// `test/model_kind_parity_test.dart`). Exhaustive `switch`es over
+/// [ModelKind] need a new branch whenever a case is appended.
 enum ModelKind {
   vad,
   parakeetV2,
@@ -14,6 +19,29 @@ enum ModelKind {
   /// turn detection can start without blocking on the network. `remove` clears
   /// every chunk variant of the EOU cache, not just `ms320`.
   eou,
+
+  /// The offline speaker-diarization bundle a `FluidDiarizer.create` session
+  /// loads: pyannote community-1 segmentation, the filterbank front-end,
+  /// WeSpeaker embeddings and the PLDA scorer.
+  diarizer,
+
+  /// The Parakeet CTC-110M spotter models (~100 MB) behind
+  /// `FluidCtcVocabulary` — custom-vocabulary boosting on the streaming route
+  /// and batch rescoring of a finished transcription.
+  ctc110m,
+
+  /// The Kokoro-ANE English TTS bundle a `FluidKokoroTts.create` session
+  /// loads, plus the shared G2P (text → IPA) assets it needs. `remove` clears
+  /// every Kokoro variant (English, Mandarin, Japanese) and the shared G2P
+  /// folder.
+  kokoro,
+
+  /// The PocketTTS English language pack a `FluidPocketTts.create` session
+  /// loads. Only the English pack is bound (see `FluidPocketTts`).
+  ///
+  /// Kokoro and PocketTTS cache outside the FluidAudio models root — see
+  /// `FluidModels.cacheDirectory`.
+  pocketTts,
 }
 
 /// Phase of a model download.

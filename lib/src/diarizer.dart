@@ -97,7 +97,14 @@ class FluidDiarizationResult {
   Set<String> get speakerIds => {for (final segment in segments) segment.speakerId};
 }
 
-/// Offline speaker diarization (VBx pipeline, CoreML).
+/// Offline (batch) speaker diarization, CoreML.
+///
+/// Wraps FluidAudio's `OfflineDiarizerManager`: pyannote community-1 powerset
+/// segmentation → filterbank front-end → WeSpeaker embeddings → PLDA scoring →
+/// VBx (variational Bayes) clustering. "VBx" names the clustering stage only,
+/// not the pipeline; this is *not* the LS-EEND or Sortformer diarizer (both
+/// exist upstream, neither is bound here — see the streaming-diarization note
+/// in `doc/ARCHITECTURE.md`).
 class FluidDiarizer {
   FluidDiarizer._(this._hostApi, this._instanceId, this._events) {
     final api = _hostApi;

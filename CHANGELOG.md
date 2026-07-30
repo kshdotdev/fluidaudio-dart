@@ -1,5 +1,62 @@
 # Changelog
 
+## 0.4.0 — 2026-07-29
+
+**Breaking — `ModelKind` widened**
+- Four cases were appended to `ModelKind`: `diarizer`, `ctc110m`, `kokoro`,
+  `pocketTts`. Additive, but an exhaustive `switch` over `ModelKind` with no
+  `default` stops compiling until the new branches are handled — hence the
+  minor bump.
+- `ModelKind` is bridged to the pigeon enum **by ordinal index**, so both
+  declarations are strictly append-only: reordering or removing a case would
+  silently point every later kind at the wrong native repo.
+  `test/model_kind_parity_test.dart` is the guard.
+
+**Models**
+- `FluidModels` now covers every model the library can load, not just ASR/VAD:
+  `isDownloaded` / `download` (with progress) / `remove` / `cacheDirectory`
+  work for the offline diarizer, the CTC-110M spotter, Kokoro-ANE (English,
+  plus the shared G2P assets it loads from cache only) and the PocketTTS
+  English pack. Enough to build a model-download manager in Dart.
+- Two upstream paths have no progress hook: `CtcModels.download` reports a
+  single `listing` phase before completing, like `FluidCtcVocabulary.load`
+  already did. Everything else streams real progress.
+- `cacheDirectory` reports the *TTS* cache root for `kokoro`/`pocketTts`
+  (`~/.cache/fluidaudio/Models/…` on macOS) — a different tree from the
+  ASR/diarizer models root. `remove` clears whole families: every Kokoro
+  language variant plus the shared G2P assets; every cached PocketTTS
+  language pack.
+
+**Custom vocabulary**
+- `FluidCtcVocabulary.rescore` — batch counterpart to the streaming boost. A
+  finished `FluidAsr` transcription is rescored against the vocabulary by
+  re-running the CTC keyword spotter over the same audio
+  (`spotKeywordsWithLogProbs`) and rewriting low-confidence words from the
+  cached log-probabilities (`ctcTokenRescore`). `weight` defaults to the
+  batch route's aggressive `10.0`. Returns the detected and applied terms;
+  token timings are carried through untouched (replacements are
+  word-for-word). Requires the result to carry token timings — without them
+  there is nothing to align against and the input is returned unchanged.
+
+**Inverse text normalization**
+- `FluidItn.normalizeResult` — sentence-mode normalization of a whole
+  `FluidAsrResult`, keeping `tokenTimings` attached. Previously ITN only took
+  bare strings, so normalization and word timings could not coexist.
+
+**Deprecations**
+- `FluidMicrophone` and `FluidSystemAudio` (and the `recordToWavPath`
+  WAV-recording parameters on both) are deprecated: production capture is
+  owned by `package:audio_flutter`. They keep working through 0.x and will be
+  removed at 1.0. The session-side `feed` APIs are **not** deprecated — and
+  neither is what the capture classes uniquely offer, the native fan-out into
+  streaming-ASR/EOU/VAD sessions, which avoids a channel hop per buffer.
+
+**Docs**
+- `FluidDiarizer` is documented for what it actually is: pyannote community-1
+  powerset segmentation → WeSpeaker embeddings → PLDA scoring → VBx
+  clustering. "VBx" names the clustering stage, not the pipeline; it is not
+  the LS-EEND diarizer some downstream docs called it.
+
 ## 0.3.1 — 2026-07-26
 
 **Fixes**

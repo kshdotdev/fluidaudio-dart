@@ -103,12 +103,18 @@ enum AsrVersionMessage {
   v3,
 }
 
-/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
+/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per
+/// milestone). Dart's `ModelKind` maps onto this enum **by ordinal index**, so
+/// both declarations are append-only — see `test/model_kind_parity_test.dart`.
 enum ModelKindMessage {
   vad,
   parakeetV2,
   parakeetV3,
   eou,
+  diarizer,
+  ctc110m,
+  kokoro,
+  pocketTts,
 }
 
 enum DownloadPhaseMessage {
@@ -1244,6 +1250,72 @@ class VocabularyTermMessage {
   }
 }
 
+/// Outcome of rescoring a finished batch transcription against a vocabulary.
+class VocabularyRescoreMessage {
+  VocabularyRescoreMessage({
+    required this.result,
+    required this.wasModified,
+    required this.detectedTerms,
+    required this.appliedTerms,
+  });
+
+  /// The rescored result, or the input unchanged when nothing was replaced.
+  /// Token timings are carried through untouched — replacements are
+  /// word-for-word, so the original alignment stays valid.
+  AsrResultMessage result;
+
+  bool wasModified;
+
+  /// Terms the CTC spotter found in the audio (replacement candidates).
+  List<String> detectedTerms;
+
+  /// Terms actually written into [result].
+  List<String> appliedTerms;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      result,
+      wasModified,
+      detectedTerms,
+      appliedTerms,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static VocabularyRescoreMessage decode(Object result) {
+    result as List<Object?>;
+    return VocabularyRescoreMessage(
+      result: result[0]! as AsrResultMessage,
+      wasModified: result[1]! as bool,
+      detectedTerms: (result[2]! as List<Object?>).cast<String>(),
+      appliedTerms: (result[3]! as List<Object?>).cast<String>(),
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! VocabularyRescoreMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(result, other.result) && _deepEquals(wasModified, other.wasModified) && _deepEquals(detectedTerms, other.detectedTerms) && _deepEquals(appliedTerms, other.appliedTerms);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'VocabularyRescoreMessage(result: $result, wasModified: $wasModified, detectedTerms: $detectedTerms, appliedTerms: $appliedTerms)';
+  }
+}
+
 class TtsResultMessage {
   TtsResultMessage({
     required this.samples,
@@ -1638,20 +1710,23 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is VocabularyTermMessage) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsResultMessage) {
+    }    else if (value is VocabularyRescoreMessage) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsChunkMessage) {
+    }    else if (value is TtsResultMessage) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    }    else if (value is MicFrameMessage) {
+    }    else if (value is TtsChunkMessage) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    }    else if (value is CaptureHealthMessage) {
+    }    else if (value is MicFrameMessage) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioProcessMessage) {
+    }    else if (value is CaptureHealthMessage) {
       buffer.putUint8(158);
+      writeValue(buffer, value.encode());
+    }    else if (value is AudioProcessMessage) {
+      buffer.putUint8(159);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1720,14 +1795,16 @@ class _PigeonCodec extends StandardMessageCodec {
       case 153:
         return VocabularyTermMessage.decode(readValue(buffer)!);
       case 154:
-        return TtsResultMessage.decode(readValue(buffer)!);
+        return VocabularyRescoreMessage.decode(readValue(buffer)!);
       case 155:
-        return TtsChunkMessage.decode(readValue(buffer)!);
+        return TtsResultMessage.decode(readValue(buffer)!);
       case 156:
-        return MicFrameMessage.decode(readValue(buffer)!);
+        return TtsChunkMessage.decode(readValue(buffer)!);
       case 157:
-        return CaptureHealthMessage.decode(readValue(buffer)!);
+        return MicFrameMessage.decode(readValue(buffer)!);
       case 158:
+        return CaptureHealthMessage.decode(readValue(buffer)!);
+      case 159:
         return AudioProcessMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -2550,6 +2627,30 @@ class CtcVocabularyHostApi {
     return pigeonVar_replyValue! as int;
   }
 
+  /// Rescores a finished batch transcription: runs the CTC keyword spotter
+  /// over the same 16 kHz mono float32 samples, then rewrites low-confidence
+  /// words against this vocabulary using the cached log-probabilities.
+  /// [defaultWeight] is the context-biasing weight applied to terms loaded
+  /// without an explicit one. Requires [result] to carry token timings.
+  Future<VocabularyRescoreMessage> rescoreResult(int instanceId, AsrResultMessage result, Uint8List float32Samples, double defaultWeight) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.rescoreResult$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, result, float32Samples, defaultWeight]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as VocabularyRescoreMessage;
+  }
+
   Future<void> dispose(int instanceId) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.dispose$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
@@ -2641,6 +2742,28 @@ class ItnHostApi {
     )
     ;
     return pigeonVar_replyValue! as String;
+  }
+
+  /// Sentence-mode normalization of a whole ASR result, keeping the token
+  /// timings coherent (ITN and word timings can coexist). Returns the input
+  /// unchanged when normalization is a no-op.
+  Future<AsrResultMessage> normalizeResult(AsrResultMessage result) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalizeResult$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[result]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as AsrResultMessage;
   }
 
   Future<void> addRule(String spoken, String written) async {

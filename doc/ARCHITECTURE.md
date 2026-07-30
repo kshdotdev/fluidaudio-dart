@@ -67,7 +67,7 @@ and drift-checked in CI.
    `deinit` fires on engine death. Teardown stops captures and releases every
    registry instance.
 
-## Capture
+## Capture (deprecated since 0.4.0)
 
 `FluidMicrophone` (AVAudioEngine tap) and `FluidSystemAudio` (Core Audio
 process tap, macOS 14.4+, global-except-self or targeted PIDs via
@@ -78,6 +78,14 @@ streams; the system tap rebuilds once with fresh process translation when
 silent (helpers become tappable only after opening audio), fails-and-stops
 only when the chain delivers no callbacks, and reports alive-but-quiet as
 informational `silent`.
+
+**Ownership rule**: production capture belongs to `package:audio_flutter`
+(device selection, permissions, health diagnostics, non-Darwin platforms).
+Both classes and the `recordToWavPath` sink are `@Deprecated` for 0.x and go
+away at 1.0. What they own that `audio_flutter` does not replace is the
+*native fan-out*: `audio_flutter` delivers frames to Dart, so driving a
+FluidAudio session from it costs a channel hop per buffer. The session-side
+`feed` APIs stay first-class and are not deprecated.
 
 ## Verification
 
@@ -96,6 +104,18 @@ informational `silent`.
 ## Known limitations
 
 - Qwen3 is not bound (removed upstream in FluidAudio 0.15.x).
+- Diarization is **offline/batch only** (`OfflineDiarizerManager`: pyannote
+  community-1 powerset segmentation → WeSpeaker embeddings → PLDA → VBx
+  clustering). Upstream's streaming diarizers — `DiarizerManager` +
+  `SpeakerManager`, LS-EEND, Sortformer — are deliberately unbound while the
+  library is frozen on FluidAudio 0.15.x.
+- `ModelKind` covers the models this library can load. Upstream repos it does
+  not bind (Paraformer, SenseVoice, Nemotron streaming, StyleTTS2, …) are out
+  of scope, not missing.
+- PocketTTS is bound English-only (`PocketTtsLanguage.english`); `ModelKind`
+  manages that one language pack. Kokoro `ModelKind` management covers the
+  ANE **English** bundle plus the shared G2P assets — `FluidKokoroTts` can
+  still create Mandarin/Japanese sessions, which download on demand.
 - System-audio capture requires an unsandboxed app and the System Audio
   Recording permission (`NSAudioCaptureUsageDescription`); Screen-Recording
   TCC grants key to the binary's cdhash — sign with a stable identity.

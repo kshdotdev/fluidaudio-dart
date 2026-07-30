@@ -6,11 +6,14 @@ text-to-speech on Apple platforms, powered by CoreML and the Apple Neural Engine
 
 > **Status: feature-complete against FluidAudio 0.15.x.** Batch + streaming
 > speech-to-text, VAD, speaker diarization (with embeddings), end-of-utterance
-> turn detection, custom-vocabulary boosting, inverse text normalization,
+> turn detection, custom-vocabulary boosting (streaming *and* batch
+> rescoring), inverse text normalization (with or without word timings),
 > text-to-speech (Kokoro + PocketTTS incl. streaming and voice cloning), audio
-> conversion, model management, and native microphone / system-audio capture
-> with watchdog health — all verified end-to-end against real CoreML models.
-> API may still change before 1.0.
+> conversion, and model management for every loadable bundle — all verified
+> end-to-end against real CoreML models. Native microphone / system-audio
+> capture ships too but is deprecated in favour of `package:audio_flutter`
+> (see [Capture ownership](#capture-ownership)). API may still change
+> before 1.0.
 
 ```dart
 import 'package:fluidaudio_dart/fluidaudio_dart.dart';
@@ -56,9 +59,24 @@ final vocab = await FluidCtcVocabulary.load(
 final session = await FluidStreamingAsr.create();
 await session.configureVocabulary(vocab); // before start()
 
+// ... or rescore a finished batch transcription against the same vocabulary
+final raw = await asr.transcribe(samples);          // must carry tokenTimings
+final boosted = await vocab.rescore(raw, samples);  // weight defaults to 10.0
+print('${boosted.result.text} applied=${boosted.appliedTerms}');
+
 // Inverse text normalization
 final itn = FluidItn();
 print(await itn.normalizeSentence('pay twenty five dollars')); // "pay $25"
+// ... keeping the word timings attached:
+final normalized = await itn.normalizeResult(raw);
+
+// Pre-download / probe / clear any model bundle the library can load
+final models = FluidModels();
+if (!await models.isDownloaded(ModelKind.diarizer)) {
+  await for (final p in models.download(ModelKind.diarizer)) {
+    print('${p.phase.name} ${(p.fraction * 100).toStringAsFixed(0)}%');
+  }
+}
 
 // Text-to-speech
 final tts = await FluidKokoroTts.create();
@@ -88,7 +106,20 @@ await FluidMicrophone().start(
 
 Models are downloaded automatically from HuggingFace
 (`FluidInference/*`) on first use and cached under
-`~/Library/Application Support/FluidAudio/Models`.
+`~/Library/Application Support/FluidAudio/Models` — except the TTS backends
+(Kokoro, PocketTTS), which upstream caches under `~/.cache/fluidaudio/Models`
+on macOS. `FluidModels.cacheDirectory` reports the right one per
+`ModelKind`.
+
+## Capture ownership
+
+`FluidMicrophone` and `FluidSystemAudio` are **deprecated since 0.4.0**:
+production capture belongs to `package:audio_flutter`, which owns device
+selection, permissions, health diagnostics and non-Darwin platforms. They keep
+working through 0.x and are removed at 1.0. They remain the only way to fan
+audio into a FluidAudio session *without* crossing the platform channel — the
+session-side `feed` APIs are not deprecated, and `audio_flutter` frames can be
+fed to them at the cost of one channel hop per buffer.
 
 ## Architecture
 
@@ -122,7 +153,10 @@ load-bearing invariants, verification map) and
       Audio process taps capture other apps' audio (all, or specific PIDs) —
       the "other participants" track of a meeting transcriber. Requires the
       System Audio Recording permission (`NSAudioCaptureUsageDescription`)
-      and an unsandboxed app.
+      and an unsandboxed app. *Deprecated in 0.4.0 — see Capture ownership.*
+- ✅ **M7** (0.4.0) — model management for every loadable bundle (diarizer,
+      CTC-110M, Kokoro, PocketTTS), batch custom-vocabulary rescoring, and
+      timing-preserving inverse text normalization
 
 ## CocoaPods note
 

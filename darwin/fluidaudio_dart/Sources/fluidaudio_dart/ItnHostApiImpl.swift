@@ -33,6 +33,30 @@ final class ItnHostApiImpl: ItnHostApi {
     }
   }
 
+  /// `TextNormalizer.normalize(result:)` — rewrites the text in sentence mode
+  /// while carrying the token timings through unchanged, so ITN and word
+  /// timings can coexist. Returns the input when normalization is a no-op.
+  func normalizeResult(
+    result: AsrResultMessage, completion: @escaping (Result<AsrResultMessage, Error>) -> Void
+  ) {
+    let normalized = normalizer.normalize(result: TypeMapping.asrResult(from: result))
+    guard normalized.text != result.text else {
+      completion(.success(result))
+      return
+    }
+    // Round-trip through the message we were given rather than the mapped
+    // ASRResult, so nothing the wire format does not carry is invented.
+    completion(
+      .success(
+        AsrResultMessage(
+          text: normalized.text,
+          confidence: result.confidence,
+          durationSeconds: result.durationSeconds,
+          processingSeconds: result.processingSeconds,
+          tokenTimings: result.tokenTimings
+        )))
+  }
+
   func addRule(
     spoken: String, written: String, completion: @escaping (Result<Void, Error>) -> Void
   ) {

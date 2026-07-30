@@ -31,6 +31,17 @@ class FluidMicFrame {
 /// One capture runs at a time. Requires the microphone permission
 /// (`NSMicrophoneUsageDescription`, and the `com.apple.security.device.audio-input`
 /// entitlement in sandboxed macOS apps).
+///
+/// **Deprecated**: production capture belongs to `package:audio_flutter`,
+/// which owns device selection, permissions, health diagnostics and the
+/// cross-platform capture graph — this library duplicated them only to be
+/// self-contained. What `audio_flutter` does not replace is the *native
+/// fan-out*: it delivers frames to Dart, so feeding a
+/// [FluidStreamingAsr]/[FluidEou]/[FluidVadStream] from it means paying a
+/// channel hop per buffer. Those session-side `feed` APIs are not deprecated;
+/// only the capture in front of them is.
+@Deprecated(
+    'Production capture moved to package:audio_flutter — this 0.x compatibility surface will be removed at 1.0')
 class FluidMicrophone {
   FluidMicrophone({
     @visibleForTesting messages.MicrophoneHostApi? hostApi,
@@ -58,6 +69,8 @@ class FluidMicrophone {
     List<FluidEou> turnDetectors = const [],
     List<FluidVadStream> vadStreams = const [],
     bool emitFrames = false,
+    @Deprecated(
+        'Production capture moved to package:audio_flutter — this 0.x compatibility surface will be removed at 1.0')
     String? recordToWavPath,
   }) {
     return wrapPlatformErrors(

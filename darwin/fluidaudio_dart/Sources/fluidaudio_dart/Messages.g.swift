@@ -190,12 +190,18 @@ enum AsrVersionMessage: Int, CaseIterable {
   case v3 = 1
 }
 
-/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per milestone).
+/// Downloadable model bundles (subset of FluidAudio's `Repo`; grows per
+/// milestone). Dart's `ModelKind` maps onto this enum **by ordinal index**, so
+/// both declarations are append-only — see `test/model_kind_parity_test.dart`.
 enum ModelKindMessage: Int, CaseIterable {
   case vad = 0
   case parakeetV2 = 1
   case parakeetV3 = 2
   case eou = 3
+  case diarizer = 4
+  case ctc110m = 5
+  case kokoro = 6
+  case pocketTts = 7
 }
 
 enum DownloadPhaseMessage: Int, CaseIterable {
@@ -1168,6 +1174,63 @@ struct VocabularyTermMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Outcome of rescoring a finished batch transcription against a vocabulary.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct VocabularyRescoreMessage: Hashable, CustomStringConvertible {
+  /// The rescored result, or the input unchanged when nothing was replaced.
+  /// Token timings are carried through untouched — replacements are
+  /// word-for-word, so the original alignment stays valid.
+  var result: AsrResultMessage
+  var wasModified: Bool
+  /// Terms the CTC spotter found in the audio (replacement candidates).
+  var detectedTerms: [String]
+  /// Terms actually written into [result].
+  var appliedTerms: [String]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> VocabularyRescoreMessage? {
+    let result = pigeonVar_list[0] as! AsrResultMessage
+    let wasModified = pigeonVar_list[1] as! Bool
+    let detectedTerms = pigeonVar_list[2] as! [String]
+    let appliedTerms = pigeonVar_list[3] as! [String]
+
+    return VocabularyRescoreMessage(
+      result: result,
+      wasModified: wasModified,
+      detectedTerms: detectedTerms,
+      appliedTerms: appliedTerms
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      result,
+      wasModified,
+      detectedTerms,
+      appliedTerms,
+    ]
+  }
+  static func == (lhs: VocabularyRescoreMessage, rhs: VocabularyRescoreMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.result, rhs.result) && MessagesPigeonInternal.deepEquals(lhs.wasModified, rhs.wasModified) && MessagesPigeonInternal.deepEquals(lhs.detectedTerms, rhs.detectedTerms) && MessagesPigeonInternal.deepEquals(lhs.appliedTerms, rhs.appliedTerms)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("VocabularyRescoreMessage")
+    MessagesPigeonInternal.deepHash(value: result, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: wasModified, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: detectedTerms, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: appliedTerms, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "VocabularyRescoreMessage(result: \(String(describing: result)), wasModified: \(String(describing: wasModified)), detectedTerms: \(String(describing: detectedTerms)), appliedTerms: \(String(describing: appliedTerms)))"
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct TtsResultMessage: Hashable, CustomStringConvertible {
   /// Raw float32 PCM bytes (24 kHz mono).
@@ -1519,14 +1582,16 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 153:
       return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
     case 154:
-      return TtsResultMessage.fromList(self.readValue() as! [Any?])
+      return VocabularyRescoreMessage.fromList(self.readValue() as! [Any?])
     case 155:
-      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
+      return TtsResultMessage.fromList(self.readValue() as! [Any?])
     case 156:
-      return MicFrameMessage.fromList(self.readValue() as! [Any?])
+      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
     case 157:
-      return CaptureHealthMessage.fromList(self.readValue() as! [Any?])
+      return MicFrameMessage.fromList(self.readValue() as! [Any?])
     case 158:
+      return CaptureHealthMessage.fromList(self.readValue() as! [Any?])
+    case 159:
       return AudioProcessMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1611,20 +1676,23 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? VocabularyTermMessage {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsResultMessage {
+    } else if let value = value as? VocabularyRescoreMessage {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsChunkMessage {
+    } else if let value = value as? TtsResultMessage {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? MicFrameMessage {
+    } else if let value = value as? TtsChunkMessage {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? CaptureHealthMessage {
+    } else if let value = value as? MicFrameMessage {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioProcessMessage {
+    } else if let value = value as? CaptureHealthMessage {
       super.writeByte(158)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioProcessMessage {
+      super.writeByte(159)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -2458,6 +2526,12 @@ protocol CtcVocabularyHostApi {
   /// returns a vocabulary instance id for use with
   /// [StreamingAsrHostApi.configureVocabulary].
   func load(terms: [VocabularyTermMessage], minSimilarity: Double, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
+  /// Rescores a finished batch transcription: runs the CTC keyword spotter
+  /// over the same 16 kHz mono float32 samples, then rewrites low-confidence
+  /// words against this vocabulary using the cached log-probabilities.
+  /// [defaultWeight] is the context-biasing weight applied to terms loaded
+  /// without an explicit one. Requires [result] to carry token timings.
+  func rescoreResult(instanceId: Int64, result: AsrResultMessage, float32Samples: FlutterStandardTypedData, defaultWeight: Double, completion: @escaping (Result<VocabularyRescoreMessage, Error>) -> Void)
   func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
@@ -2489,6 +2563,31 @@ class CtcVocabularyHostApiSetup {
     } else {
       loadChannel.setMessageHandler(nil)
     }
+    /// Rescores a finished batch transcription: runs the CTC keyword spotter
+    /// over the same 16 kHz mono float32 samples, then rewrites low-confidence
+    /// words against this vocabulary using the cached log-probabilities.
+    /// [defaultWeight] is the context-biasing weight applied to terms loaded
+    /// without an explicit one. Requires [result] to carry token timings.
+    let rescoreResultChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.rescoreResult\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rescoreResultChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let resultArg = args[1] as! AsrResultMessage
+        let float32SamplesArg = args[2] as! FlutterStandardTypedData
+        let defaultWeightArg = args[3] as! Double
+        api.rescoreResult(instanceId: instanceIdArg, result: resultArg, float32Samples: float32SamplesArg, defaultWeight: defaultWeightArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      rescoreResultChannel.setMessageHandler(nil)
+    }
     let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.CtcVocabularyHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       disposeChannel.setMessageHandler { message, reply in
@@ -2517,6 +2616,10 @@ protocol ItnHostApi {
   func normalize(text: String, completion: @escaping (Result<String, Error>) -> Void)
   /// Sliding-window normalization across a full sentence.
   func normalizeSentence(text: String, maxSpanTokens: Int64?, completion: @escaping (Result<String, Error>) -> Void)
+  /// Sentence-mode normalization of a whole ASR result, keeping the token
+  /// timings coherent (ITN and word timings can coexist). Returns the input
+  /// unchanged when normalization is a no-op.
+  func normalizeResult(result: AsrResultMessage, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
   func addRule(spoken: String, written: String, completion: @escaping (Result<Void, Error>) -> Void)
   func removeRule(spoken: String, completion: @escaping (Result<Bool, Error>) -> Void)
   func clearRules(completion: @escaping (Result<Void, Error>) -> Void)
@@ -2581,6 +2684,26 @@ class ItnHostApiSetup {
       }
     } else {
       normalizeSentenceChannel.setMessageHandler(nil)
+    }
+    /// Sentence-mode normalization of a whole ASR result, keeping the token
+    /// timings coherent (ITN and word timings can coexist). Returns the input
+    /// unchanged when normalization is a no-op.
+    let normalizeResultChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.normalizeResult\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      normalizeResultChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let resultArg = args[0] as! AsrResultMessage
+        api.normalizeResult(result: resultArg) { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      normalizeResultChannel.setMessageHandler(nil)
     }
     let addRuleChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ItnHostApi.addRule\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
