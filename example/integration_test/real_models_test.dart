@@ -49,6 +49,34 @@ void main() {
           reason: 'reused decoder state would corrupt the second transcript');
     }, timeout: const Timeout(Duration(minutes: 5)));
 
+    testWidgets('batch cancellation releases inference within two seconds',
+        (tester) async {
+      // Three minutes is long enough that cancellation lands during native
+      // chunk/CoreML work rather than after an already-completed operation.
+      final longSamples = Float32List(16000 * 60 * 3);
+      for (var offset = 0; offset < longSamples.length; offset += helloSamples.length) {
+        final count = (longSamples.length - offset).clamp(0, helloSamples.length);
+        longSamples.setRange(offset, offset + count, helloSamples);
+      }
+
+      final operation = asr.startTranscription(longSamples);
+      final result = expectLater(
+        operation.result,
+        throwsA(isA<FluidOperationCancelledException>()),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final stopwatch = Stopwatch()..start();
+      await operation.cancel().timeout(const Duration(seconds: 2));
+      stopwatch.stop();
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+      await result;
+
+      // Cancelling one operation must not unload the shared recognizer.
+      final afterCancellation = await asr.transcribe(helloSamples);
+      expect(afterCancellation.text.toLowerCase(), contains('hello'));
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
     testWidgets('file-based transcription matches sample-based', (tester) async {
       final path = await materializeWavAsset('assets/hello.wav');
       final fromFile = await asr.transcribeFile(path);

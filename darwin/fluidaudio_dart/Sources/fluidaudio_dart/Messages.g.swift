@@ -1900,9 +1900,15 @@ protocol AsrHostApi {
   /// Progress is reported on `downloadProgress` tagged with [progressToken].
   func load(version: AsrVersionMessage, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
-  /// state per call). [languageCode] is an ISO 639-1 code such as "en".
-  func transcribeSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
-  func transcribeFile(instanceId: Int64, path: String, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
+  /// state per call). [operationId] is caller-allocated and unique within
+  /// [instanceId]; it allows the native inference task to be cancelled.
+  /// [languageCode] is an ISO 639-1 code such as "en".
+  func transcribeSamples(instanceId: Int64, operationId: Int64, float32Samples: FlutterStandardTypedData, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
+  func transcribeFile(instanceId: Int64, operationId: Int64, path: String, languageCode: String?, completion: @escaping (Result<AsrResultMessage, Error>) -> Void)
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained inference task has unwound. Unknown/finished ids are a no-op.
+  func cancel(instanceId: Int64, operationId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Cancels every active operation before releasing the model instance.
   func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
@@ -1933,15 +1939,18 @@ class AsrHostApiSetup {
       loadChannel.setMessageHandler(nil)
     }
     /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
-    /// state per call). [languageCode] is an ISO 639-1 code such as "en".
+    /// state per call). [operationId] is caller-allocated and unique within
+    /// [instanceId]; it allows the native inference task to be cancelled.
+    /// [languageCode] is an ISO 639-1 code such as "en".
     let transcribeSamplesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeSamples\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       transcribeSamplesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let instanceIdArg = args[0] as! Int64
-        let float32SamplesArg = args[1] as! FlutterStandardTypedData
-        let languageCodeArg: String? = nilOrValue(args[2])
-        api.transcribeSamples(instanceId: instanceIdArg, float32Samples: float32SamplesArg, languageCode: languageCodeArg) { result in
+        let operationIdArg = args[1] as! Int64
+        let float32SamplesArg = args[2] as! FlutterStandardTypedData
+        let languageCodeArg: String? = nilOrValue(args[3])
+        api.transcribeSamples(instanceId: instanceIdArg, operationId: operationIdArg, float32Samples: float32SamplesArg, languageCode: languageCodeArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1958,9 +1967,10 @@ class AsrHostApiSetup {
       transcribeFileChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let instanceIdArg = args[0] as! Int64
-        let pathArg = args[1] as! String
-        let languageCodeArg: String? = nilOrValue(args[2])
-        api.transcribeFile(instanceId: instanceIdArg, path: pathArg, languageCode: languageCodeArg) { result in
+        let operationIdArg = args[1] as! Int64
+        let pathArg = args[2] as! String
+        let languageCodeArg: String? = nilOrValue(args[3])
+        api.transcribeFile(instanceId: instanceIdArg, operationId: operationIdArg, path: pathArg, languageCode: languageCodeArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -1972,6 +1982,27 @@ class AsrHostApiSetup {
     } else {
       transcribeFileChannel.setMessageHandler(nil)
     }
+    /// Requests cooperative native cancellation and completes only after the
+    /// retained inference task has unwound. Unknown/finished ids are a no-op.
+    let cancelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.cancel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      cancelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let operationIdArg = args[1] as! Int64
+        api.cancel(instanceId: instanceIdArg, operationId: operationIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      cancelChannel.setMessageHandler(nil)
+    }
+    /// Cancels every active operation before releasing the model instance.
     let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       disposeChannel.setMessageHandler { message, reply in

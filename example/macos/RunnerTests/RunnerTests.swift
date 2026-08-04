@@ -67,6 +67,105 @@ class RunnerTests: XCTestCase {
     queue.shutdown()
   }
 
+  /// Pins the native cancellation contract without downloading CoreML
+  /// models: cancel retains and awaits the actual task, is idempotent, and
+  /// returns comfortably inside the two-second release budget when the task
+  /// cooperates with Swift cancellation.
+  func testAsrOperationCancellationAwaitsTaskAndIsIdempotent() async throws {
+    let store = AsrOperationStore()
+    let operation = try store.reserve(41)
+    let started = expectation(description: "inference task started")
+    let stopped = expectation(description: "inference task stopped")
+    let task = Task<Void, Never> {
+      started.fulfill()
+      do {
+        while true {
+          try await Task.sleep(nanoseconds: 60_000_000_000)
+        }
+      } catch {
+        // Task.sleep observes cancellation immediately.
+      }
+      stopped.fulfill()
+    }
+    operation.attach(task)
+    await fulfillment(of: [started], timeout: 1)
+
+    let began = Date()
+    async let firstCancel: Void = store.cancel(41)
+    async let secondCancel: Void = store.cancel(41)
+    _ = await (firstCancel, secondCancel)
+
+    XCTAssertLessThan(Date().timeIntervalSince(began), 2)
+    await fulfillment(of: [stopped], timeout: 1)
+    XCTAssertEqual(store.activeCount, 1)
+    store.finish(41)
+    XCTAssertEqual(store.activeCount, 0)
+    await store.cancel(41)  // Finished ids are successful no-ops.
+  }
+
+  /// Cancellation can race the tiny reserve/attach window. The request must
+  /// wait for attachment and cancel that task rather than returning early.
+  func testAsrOperationCancellationBeforeAttachmentIsNotLost() async throws {
+    let store = AsrOperationStore()
+    let operation = try store.reserve(42)
+    let stopped = expectation(description: "late-attached task stopped")
+
+    let cancellation = Task { await store.cancel(42) }
+    await Task.yield()
+    let task = Task<Void, Never> {
+      do {
+        try await Task.sleep(nanoseconds: 60_000_000_000)
+      } catch {
+        // Expected cancellation after attachment.
+      }
+      stopped.fulfill()
+    }
+    operation.attach(task)
+
+    await cancellation.value
+    await fulfillment(of: [stopped], timeout: 1)
+    store.finish(42)
+  }
+
+  func testAsrOperationCloseCancelsAllAndRejectsNewWork() async throws {
+    let store = AsrOperationStore()
+    let first = try store.reserve(1)
+    let second = try store.reserve(2)
+    let stopped = expectation(description: "all inference tasks stopped")
+    stopped.expectedFulfillmentCount = 2
+
+    for operation in [first, second] {
+      operation.attach(Task<Void, Never> {
+        do {
+          try await Task.sleep(nanoseconds: 60_000_000_000)
+        } catch {
+          // Expected during close.
+        }
+        stopped.fulfill()
+      })
+    }
+
+    await store.cancelAllAndClose()
+    await store.cancelAllAndClose()  // Idempotent close.
+    await fulfillment(of: [stopped], timeout: 1)
+    XCTAssertEqual(store.activeCount, 0)
+    XCTAssertThrowsError(try store.reserve(3)) { error in
+      guard case AsrOperationStoreError.closed = error else {
+        return XCTFail("Unexpected registration error: \(error)")
+      }
+    }
+  }
+
+  func testAsrOperationRejectsDuplicateActiveIdentity() throws {
+    let store = AsrOperationStore()
+    _ = try store.reserve(7)
+    XCTAssertThrowsError(try store.reserve(7)) { error in
+      guard case AsrOperationStoreError.duplicate(7) = error else {
+        return XCTFail("Unexpected registration error: \(error)")
+      }
+    }
+  }
+
   func testSampleChunkerEmitsExactChunks() {
     let chunker = SampleChunker(chunkSize: 4096)
     XCTAssertTrue(chunker.push(Array(repeating: 0, count: 4095)).isEmpty)
