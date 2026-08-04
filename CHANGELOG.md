@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+**Batch ASR cancellation**
+- `FluidAsr.startTranscription` and `startFileTranscription` return a
+  `FluidAsrTranscription` handle with an idempotent `cancel()` operation.
+- One-shot inference now carries an operation id across Pigeon and is retained
+  as a native Swift task. Cancellation waits for that task to unwind; disposing
+  a recognizer cancels and awaits every active transcription before CoreML
+  model cleanup.
+- Native cancellation is reported as
+  `FluidOperationCancelledException`. Existing `transcribe` and
+  `transcribeFile` source compatibility is preserved.
+
 ## 0.4.0 — 2026-07-29
 
 **Breaking — `ModelKind` widened**

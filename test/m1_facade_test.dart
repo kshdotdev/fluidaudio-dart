@@ -19,6 +19,11 @@ class _FakeAsrHostApi implements messages.AsrHostApi {
   messages.AsrVersionMessage? loadedVersion;
   Uint8List? lastSamples;
   String? lastLanguage;
+  int? lastOperationId;
+  final operationIds = <int>[];
+  final cancelOperationIds = <int>[];
+  final pending = <int, Completer<messages.AsrResultMessage>>{};
+  bool holdTranscriptions = false;
   int disposeCalls = 0;
 
   @override
@@ -29,10 +34,17 @@ class _FakeAsrHostApi implements messages.AsrHostApi {
 
   @override
   Future<messages.AsrResultMessage> transcribeSamples(
-      int instanceId, Uint8List float32Samples, String? languageCode) async {
+      int instanceId, int operationId, Uint8List float32Samples, String? languageCode) async {
     expect(instanceId, 7);
+    lastOperationId = operationId;
+    operationIds.add(operationId);
     lastSamples = float32Samples;
     lastLanguage = languageCode;
+    if (holdTranscriptions) {
+      final completer = Completer<messages.AsrResultMessage>();
+      pending[operationId] = completer;
+      return completer.future;
+    }
     return messages.AsrResultMessage(
       text: 'hello world',
       confidence: 0.93,
@@ -47,14 +59,42 @@ class _FakeAsrHostApi implements messages.AsrHostApi {
 
   @override
   Future<messages.AsrResultMessage> transcribeFile(
-      int instanceId, String path, String? languageCode) async {
+      int instanceId, int operationId, String path, String? languageCode) async {
+    lastOperationId = operationId;
+    operationIds.add(operationId);
+    if (holdTranscriptions) {
+      final completer = Completer<messages.AsrResultMessage>();
+      pending[operationId] = completer;
+      return completer.future;
+    }
     return messages.AsrResultMessage(
         text: 'file', confidence: 1, durationSeconds: 1, processingSeconds: 1);
   }
 
   @override
+  Future<void> cancel(int instanceId, int operationId) async {
+    expect(instanceId, 7);
+    cancelOperationIds.add(operationId);
+    _cancelPending(operationId);
+  }
+
+  @override
   Future<void> dispose(int instanceId) async {
     disposeCalls++;
+    for (final operationId in pending.keys.toList()) {
+      _cancelPending(operationId);
+    }
+  }
+
+  void _cancelPending(int operationId) {
+    final completer = pending.remove(operationId);
+    if (completer == null || completer.isCompleted) return;
+    completer.completeError(
+      PlatformException(
+        code: 'OperationCancelled',
+        message: 'Native operation $operationId was cancelled.',
+      ),
+    );
   }
 }
 
@@ -119,6 +159,7 @@ void main() {
 
       expect(fake.lastSamples, hasLength(16000 * 4));
       expect(fake.lastLanguage, 'en');
+      expect(fake.lastOperationId, 1);
       expect(result.text, 'hello world');
       expect(result.duration, const Duration(milliseconds: 2500));
       expect(result.rtfx, closeTo(5.0, 0.001));
@@ -128,6 +169,66 @@ void main() {
       await asr.dispose();
       expect(fake.disposeCalls, 1);
       expect(() => asr.transcribe(samples), throwsStateError);
+    });
+
+    test('cancellable operation forwards identity and cancellation once', () async {
+      final fake = _FakeAsrHostApi()..holdTranscriptions = true;
+      final hub = FluidEventHub.test(downloadProgress: const Stream.empty());
+      final asr = await FluidAsr.load(hostApi: fake, events: hub);
+
+      final operation = asr.startTranscription(Float32List(16000));
+      expect(operation.operationId, 1);
+      expect(operation.isCancellationRequested, isFalse);
+
+      final result = expectLater(
+        operation.result,
+        throwsA(isA<FluidOperationCancelledException>()),
+      );
+      final firstCancellation = operation.cancel();
+      final secondCancellation = operation.cancel();
+
+      expect(identical(firstCancellation, secondCancellation), isTrue);
+      expect(operation.isCancellationRequested, isTrue);
+      await firstCancellation;
+      await result;
+      expect(fake.cancelOperationIds, [1]);
+
+      await asr.dispose();
+    });
+
+    test('operation ids are unique across sample and file transcription', () async {
+      final fake = _FakeAsrHostApi();
+      final hub = FluidEventHub.test(downloadProgress: const Stream.empty());
+      final asr = await FluidAsr.load(hostApi: fake, events: hub);
+
+      final samples = asr.startTranscription(Float32List(16000));
+      final file = asr.startFileTranscription('/tmp/example.wav');
+      await Future.wait([samples.result, file.result]);
+
+      expect(samples.operationId, 1);
+      expect(file.operationId, 2);
+      expect(fake.operationIds, [1, 2]);
+      await asr.dispose();
+    });
+
+    test('dispose cancels active work and shares idempotent completion', () async {
+      final fake = _FakeAsrHostApi()..holdTranscriptions = true;
+      final hub = FluidEventHub.test(downloadProgress: const Stream.empty());
+      final asr = await FluidAsr.load(hostApi: fake, events: hub);
+      final operation = asr.startTranscription(Float32List(16000));
+      final result = expectLater(
+        operation.result,
+        throwsA(isA<FluidOperationCancelledException>()),
+      );
+
+      final firstDispose = asr.dispose();
+      final secondDispose = asr.dispose();
+
+      expect(identical(firstDispose, secondDispose), isTrue);
+      await firstDispose;
+      await result;
+      expect(fake.disposeCalls, 1);
+      expect(() => asr.startTranscription(Float32List(16000)), throwsStateError);
     });
   });
 

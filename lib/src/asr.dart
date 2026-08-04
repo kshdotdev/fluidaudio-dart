@@ -23,6 +23,8 @@ class FluidAsr {
   final messages.AsrHostApi _hostApi;
   final int _instanceId;
   bool _disposed = false;
+  int _nextOperationId = 1;
+  Future<void>? _disposeFuture;
 
   /// Downloads (if needed) and loads the Parakeet models.
   ///
@@ -52,33 +54,115 @@ class FluidAsr {
   ///
   /// [language] is an ISO 639-1 code (e.g. `"en"`); v3 models are
   /// multilingual, v2 is English-only.
-  Future<FluidAsrResult> transcribe(Float32List samples, {String? language}) async {
+  ///
+  /// For an operation that can be cancelled while native inference is in
+  /// progress, use [startTranscription].
+  Future<FluidAsrResult> transcribe(Float32List samples, {String? language}) =>
+      startTranscription(samples, language: language).result;
+
+  /// Starts a cancellable transcription of 16 kHz mono float32 [samples].
+  ///
+  /// The native inference task starts immediately. Calling
+  /// [FluidAsrTranscription.cancel] requests cooperative cancellation and
+  /// waits until that task has unwound. Its [FluidAsrTranscription.result]
+  /// then completes with [FluidOperationCancelledException].
+  FluidAsrTranscription startTranscription(Float32List samples, {String? language}) {
     _checkNotDisposed();
-    final result = await wrapPlatformErrors(
-        () => _hostApi.transcribeSamples(_instanceId, floatsToBytes(samples), language));
-    return mapAsrResult(result);
+    final operationId = _allocateOperationId();
+    final result = wrapPlatformErrors(() => _hostApi.transcribeSamples(
+        _instanceId, operationId, floatsToBytes(samples), language)).then(mapAsrResult);
+    return FluidAsrTranscription._(
+      operationId: operationId,
+      result: result,
+      cancel: () => wrapPlatformErrors(() => _hostApi.cancel(_instanceId, operationId)),
+    );
   }
 
   /// Transcribes an audio file (wav/m4a/...); FluidAudio resamples internally
   /// and uses disk-backed processing for long files.
-  Future<FluidAsrResult> transcribeFile(String path, {String? language}) async {
+  ///
+  /// For an operation that can be cancelled while native inference is in
+  /// progress, use [startFileTranscription].
+  Future<FluidAsrResult> transcribeFile(String path, {String? language}) =>
+      startFileTranscription(path, language: language).result;
+
+  /// Starts a cancellable transcription of an audio file.
+  ///
+  /// FluidAudio resamples supported file formats internally and uses
+  /// disk-backed processing for long files.
+  FluidAsrTranscription startFileTranscription(String path, {String? language}) {
     _checkNotDisposed();
-    final result = await wrapPlatformErrors(
-        () => _hostApi.transcribeFile(_instanceId, path, language));
-    return mapAsrResult(result);
+    final operationId = _allocateOperationId();
+    final result = wrapPlatformErrors(
+        () => _hostApi.transcribeFile(_instanceId, operationId, path, language)).then(mapAsrResult);
+    return FluidAsrTranscription._(
+      operationId: operationId,
+      result: result,
+      cancel: () => wrapPlatformErrors(() => _hostApi.cancel(_instanceId, operationId)),
+    );
   }
 
-  /// Releases the native models. The instance is unusable afterwards.
-  Future<void> dispose() async {
-    if (_disposed) return;
+  /// Cancels active transcriptions, then releases the native models.
+  ///
+  /// The instance is unusable as soon as disposal begins. Concurrent and
+  /// repeated calls share the same completion.
+  Future<void> dispose() {
+    final existing = _disposeFuture;
+    if (existing != null) return existing;
     _disposed = true;
     nativeDisposeFinalizer.detach(this);
-    await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
+    final future = wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
+    _disposeFuture = future;
+    return future;
+  }
+
+  int _allocateOperationId() {
+    final id = _nextOperationId;
+    _nextOperationId += 1;
+    return id;
   }
 
   void _checkNotDisposed() {
     if (_disposed) {
       throw StateError('FluidAsr was disposed');
     }
+  }
+}
+
+/// A running one-shot ASR operation.
+///
+/// The operation belongs to the [FluidAsr] that created it. Cancellation is
+/// idempotent and does not dispose that recognizer, so later operations can
+/// still use its loaded models.
+final class FluidAsrTranscription {
+  FluidAsrTranscription._({
+    required this.operationId,
+    required this.result,
+    required Future<void> Function() cancel,
+  }) : _requestCancel = cancel;
+
+  /// Caller-visible identity carried through the native channel boundary.
+  final int operationId;
+
+  /// The transcription result, or a
+  /// [FluidOperationCancelledException] after cancellation.
+  final Future<FluidAsrResult> result;
+
+  final Future<void> Function() _requestCancel;
+  Future<void>? _cancellation;
+
+  /// Whether [cancel] has been called for this operation.
+  bool get isCancellationRequested => _cancellation != null;
+
+  /// Requests cooperative native cancellation and waits for inference to stop.
+  ///
+  /// Repeated calls share the same completion. Calling this after the operation
+  /// has already finished is a successful no-op.
+  Future<void> cancel() {
+    final existing = _cancellation;
+    if (existing != null) return existing;
+    final future = _requestCancel();
+    _cancellation = future;
+    return future;
   }
 }

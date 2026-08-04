@@ -2030,15 +2030,17 @@ class AsrHostApi {
   }
 
   /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
-  /// state per call). [languageCode] is an ISO 639-1 code such as "en".
-  Future<AsrResultMessage> transcribeSamples(int instanceId, Uint8List float32Samples, String? languageCode) async {
+  /// state per call). [operationId] is caller-allocated and unique within
+  /// [instanceId]; it allows the native inference task to be cancelled.
+  /// [languageCode] is an ISO 639-1 code such as "en".
+  Future<AsrResultMessage> transcribeSamples(int instanceId, int operationId, Uint8List float32Samples, String? languageCode) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeSamples$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples, languageCode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId, float32Samples, languageCode]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2050,14 +2052,14 @@ class AsrHostApi {
     return pigeonVar_replyValue! as AsrResultMessage;
   }
 
-  Future<AsrResultMessage> transcribeFile(int instanceId, String path, String? languageCode) async {
+  Future<AsrResultMessage> transcribeFile(int instanceId, int operationId, String path, String? languageCode) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.transcribeFile$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, path, languageCode]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId, path, languageCode]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2069,6 +2071,27 @@ class AsrHostApi {
     return pigeonVar_replyValue! as AsrResultMessage;
   }
 
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained inference task has unwound. Unknown/finished ids are a no-op.
+  Future<void> cancel(int instanceId, int operationId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Cancels every active operation before releasing the model instance.
   Future<void> dispose(int instanceId) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.AsrHostApi.dispose$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

@@ -3,7 +3,7 @@
 /// (CoreML / Apple Neural Engine).
 library;
 
-export 'src/asr.dart' show FluidAsr;
+export 'src/asr.dart' show FluidAsr, FluidAsrTranscription;
 export 'src/audio_converter.dart' show FluidAudioConverter;
 export 'src/capture_health.dart' show CaptureHealthPhase, FluidCaptureHealth;
 export 'src/ctc_vocabulary.dart'
@@ -19,7 +19,11 @@ export 'src/diarizer.dart'
 export 'src/eou.dart' show EouChunkSize, FluidEou;
 export 'src/events.dart' show FluidDownloadProgressFailure;
 export 'src/exceptions.dart'
-    show FluidAudioException, FluidDownloadException, FluidInstanceGoneException;
+    show
+        FluidAudioException,
+        FluidDownloadException,
+        FluidInstanceGoneException,
+        FluidOperationCancelledException;
 export 'src/itn.dart' show FluidItn;
 export 'src/microphone.dart' show FluidMicFrame, FluidMicrophone;
 export 'src/models.dart' show FluidModels;

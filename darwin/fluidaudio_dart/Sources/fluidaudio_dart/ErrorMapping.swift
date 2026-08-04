@@ -26,4 +26,12 @@ enum ErrorMapping {
       details: nil
     )
   }
+
+  static func operationCancelled(_ id: Int64) -> PigeonError {
+    PigeonError(
+      code: "OperationCancelled",
+      message: "Native operation \(id) was cancelled.",
+      details: nil
+    )
+  }
 }

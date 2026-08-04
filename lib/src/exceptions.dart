@@ -25,6 +25,11 @@ class FluidInstanceGoneException extends FluidAudioException {
   const FluidInstanceGoneException(super.code, super.message);
 }
 
+/// A native operation stopped after cooperative cancellation was requested.
+class FluidOperationCancelledException extends FluidAudioException {
+  const FluidOperationCancelledException(super.code, super.message);
+}
+
 /// Converts a [PlatformException] thrown by a pigeon call into a typed
 /// [FluidAudioException].
 Never rethrowTyped(Object error) {
@@ -36,6 +41,9 @@ Never rethrowTyped(Object error) {
     }
     if (code == 'InstanceNotFound') {
       throw FluidInstanceGoneException(code, message);
+    }
+    if (code == 'OperationCancelled') {
+      throw FluidOperationCancelledException(code, message);
     }
     throw FluidAudioException(code, message);
   }

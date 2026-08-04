@@ -216,14 +216,23 @@ abstract class AsrHostApi {
   int load(AsrVersionMessage version, int progressToken);
 
   /// One-shot transcription of 16 kHz mono float32 samples (fresh decoder
-  /// state per call). [languageCode] is an ISO 639-1 code such as "en".
+  /// state per call). [operationId] is caller-allocated and unique within
+  /// [instanceId]; it allows the native inference task to be cancelled.
+  /// [languageCode] is an ISO 639-1 code such as "en".
   @async
   AsrResultMessage transcribeSamples(
-      int instanceId, Uint8List float32Samples, String? languageCode);
+      int instanceId, int operationId, Uint8List float32Samples, String? languageCode);
 
   @async
-  AsrResultMessage transcribeFile(int instanceId, String path, String? languageCode);
+  AsrResultMessage transcribeFile(
+      int instanceId, int operationId, String path, String? languageCode);
 
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained inference task has unwound. Unknown/finished ids are a no-op.
+  @async
+  void cancel(int instanceId, int operationId);
+
+  /// Cancels every active operation before releasing the model instance.
   @async
   void dispose(int instanceId);
 }

@@ -22,6 +22,11 @@ final asr = await FluidAsr.load(); // downloads Parakeet v3 on first use
 final result = await asr.transcribe(samples16kHzMonoFloat32);
 print(result.text);
 
+// Long batch work can be cancelled without unloading the recognizer:
+final operation = asr.startTranscription(longRecordingSamples);
+// ...later:
+await operation.cancel(); // waits for native inference to unwind
+
 // Live mic dictation with partial/confirmed updates:
 final session = await FluidStreamingAsr.create();
 session.updates.listen((u) => print('${u.isConfirmed ? "✓" : "…"} ${u.text}'));
@@ -132,6 +137,12 @@ float32 (`Float32List` in Dart).
 See `doc/ARCHITECTURE.md` for the full reference (channel conventions,
 load-bearing invariants, verification map) and
 `doc/design/2026-07-18-fluidaudio-dart-design.md` for the original design.
+
+Batch-ASR cancellation is cooperative. FluidAudio 0.15.5 checks Swift task
+cancellation before CoreML stages, between chunks and throughout decoding; an
+individual in-flight CoreML prediction is not forcibly preemptible. The
+two-second release target is therefore an integration measurement rather than
+a hard deadline the wrapper can guarantee for every model and machine.
 
 ## Roadmap
 
