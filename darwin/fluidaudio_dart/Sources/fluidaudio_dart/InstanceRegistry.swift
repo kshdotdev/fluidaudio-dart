@@ -61,6 +61,8 @@ final class InstanceRegistry {
         vadStream.queue.shutdown()
       case let asr as AsrInstance:
         Task { await asr.shutdown() }
+      case let diarizer as DiarizerInstance:
+        Task { await diarizer.shutdown() }
       case let kokoro as KokoroInstance:
         let manager = kokoro.manager
         Task { await manager.cleanup() }

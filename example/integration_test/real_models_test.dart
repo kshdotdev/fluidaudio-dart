@@ -223,6 +223,39 @@ void main() {
       expect(progressEvents, isNotEmpty);
     }, timeout: const Timeout(Duration(minutes: 5)));
 
+    testWidgets('diarization cancellation releases inference within two seconds',
+        (tester) async {
+      final diarizer = await FluidDiarizer.create();
+      addTearDown(diarizer.dispose);
+      final second = await loadWavAsset('assets/speaker2.wav');
+      final fixture = Float32List(helloSamples.length + 8000 + second.length)
+        ..setRange(0, helloSamples.length, helloSamples)
+        ..setRange(
+            helloSamples.length + 8000, helloSamples.length + 8000 + second.length, second);
+      final longSamples = Float32List(16000 * 60 * 3);
+      for (var offset = 0; offset < longSamples.length; offset += fixture.length) {
+        final count = (longSamples.length - offset).clamp(0, fixture.length);
+        longSamples.setRange(offset, offset + count, fixture);
+      }
+
+      final operation = diarizer.startDiarization(longSamples);
+      final result = expectLater(
+        operation.result,
+        throwsA(isA<FluidOperationCancelledException>()),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      final stopwatch = Stopwatch()..start();
+      await operation.cancel().timeout(const Duration(seconds: 2));
+      stopwatch.stop();
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 2)));
+      await result;
+
+      // Cancelling one operation must not unload the shared diarizer models.
+      final afterCancellation = await diarizer.diarize(fixture);
+      expect(afterCancellation.segments, isNotEmpty);
+    }, timeout: const Timeout(Duration(minutes: 5)));
+
     testWidgets('ITN normalizes or no-ops gracefully', (tester) async {
       final itn = FluidItn();
       final available = await itn.isNativeAvailable();

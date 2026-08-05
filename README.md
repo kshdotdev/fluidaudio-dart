@@ -51,6 +51,10 @@ final result = await diarizer.diarizeFile('/path/to/meeting.wav');
 for (final s in result.segments) {
   print('${s.speakerId} ${s.start}–${s.end}  embedding=${s.embedding.length}d');
 }
+// Long repairs expose the same retained-task cancellation contract as ASR:
+final diarization = diarizer.startFileDiarization('/path/to/long-meeting.wav');
+// ...later:
+await diarization.cancel();
 
 // End-of-utterance turn detection (live)
 final eou = await FluidEou.create();
@@ -138,11 +142,13 @@ See `doc/ARCHITECTURE.md` for the full reference (channel conventions,
 load-bearing invariants, verification map) and
 `doc/design/2026-07-18-fluidaudio-dart-design.md` for the original design.
 
-Batch-ASR cancellation is cooperative. FluidAudio 0.15.5 checks Swift task
-cancellation before CoreML stages, between chunks and throughout decoding; an
-individual in-flight CoreML prediction is not forcibly preemptible. The
-two-second release target is therefore an integration measurement rather than
-a hard deadline the wrapper can guarantee for every model and machine.
+Batch ASR and diarization cancellation is cooperative. The wrapper retains and
+awaits each native task; diarization also makes cancellation visible to
+FluidAudio's detached segmentation and embedding workers at audio-read
+boundaries. An individual in-flight CoreML prediction is not forcibly
+preemptible. The two-second release target is therefore an integration
+measurement rather than a hard deadline the wrapper can guarantee for every
+model and machine.
 
 ## Roadmap
 

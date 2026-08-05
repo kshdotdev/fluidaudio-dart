@@ -13,6 +13,18 @@
   `FluidOperationCancelledException`. Existing `transcribe` and
   `transcribeFile` source compatibility is preserved.
 
+**Offline diarization cancellation**
+- `FluidDiarizer.startDiarization` and `startFileDiarization` return a
+  `FluidDiarizationOperation` with an idempotent `cancel()` operation.
+- Diarization calls now carry operation ids across Pigeon and share the native
+  retained-task registry used by batch ASR. Cancellation is propagated into
+  FluidAudio's detached segmentation and embedding workers through a guarded
+  audio source, and every Pigeon operation publishes exactly one terminal
+  result.
+- Disposing a diarizer closes it to new work, cancels and awaits every active
+  operation, then releases its CoreML-backed manager. Existing `diarize` and
+  `diarizeFile` calls remain source-compatible.
+
 ## 0.4.0 — 2026-07-29
 
 **Breaking — `ModelKind` widened**

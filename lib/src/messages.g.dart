@@ -2446,15 +2446,16 @@ class DiarizerHostApi {
   }
 
   /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
-  /// `diarizationProgress` stream tagged with the instance id.
-  Future<DiarizationResultMessage> diarizeSamples(int instanceId, Uint8List float32Samples) async {
+  /// `diarizationProgress` stream tagged with the instance id. [operationId]
+  /// is caller-allocated and unique within [instanceId].
+  Future<DiarizationResultMessage> diarizeSamples(int instanceId, int operationId, Uint8List float32Samples) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeSamples$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, float32Samples]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId, float32Samples]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2466,14 +2467,14 @@ class DiarizerHostApi {
     return pigeonVar_replyValue! as DiarizationResultMessage;
   }
 
-  Future<DiarizationResultMessage> diarizeFile(int instanceId, String path) async {
+  Future<DiarizationResultMessage> diarizeFile(int instanceId, int operationId, String path) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeFile$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, path]);
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId, path]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -2485,6 +2486,27 @@ class DiarizerHostApi {
     return pigeonVar_replyValue! as DiarizationResultMessage;
   }
 
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained diarization task has unwound. Unknown/finished ids are a no-op.
+  Future<void> cancel(int instanceId, int operationId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.cancel$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[instanceId, operationId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// Cancels every active operation before releasing the diarizer models.
   Future<void> dispose(int instanceId) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.dispose$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(

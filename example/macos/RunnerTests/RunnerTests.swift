@@ -1,5 +1,6 @@
 import AVFoundation
 import Cocoa
+import FluidAudio
 import FlutterMacOS
 import XCTest
 
@@ -71,8 +72,8 @@ class RunnerTests: XCTestCase {
   /// models: cancel retains and awaits the actual task, is idempotent, and
   /// returns comfortably inside the two-second release budget when the task
   /// cooperates with Swift cancellation.
-  func testAsrOperationCancellationAwaitsTaskAndIsIdempotent() async throws {
-    let store = AsrOperationStore()
+  func testInferenceOperationCancellationAwaitsTaskAndIsIdempotent() async throws {
+    let store = InferenceOperationStore(operationKind: "test")
     let operation = try store.reserve(41)
     let started = expectation(description: "inference task started")
     let stopped = expectation(description: "inference task stopped")
@@ -105,8 +106,8 @@ class RunnerTests: XCTestCase {
 
   /// Cancellation can race the tiny reserve/attach window. The request must
   /// wait for attachment and cancel that task rather than returning early.
-  func testAsrOperationCancellationBeforeAttachmentIsNotLost() async throws {
-    let store = AsrOperationStore()
+  func testInferenceOperationCancellationBeforeAttachmentIsNotLost() async throws {
+    let store = InferenceOperationStore(operationKind: "test")
     let operation = try store.reserve(42)
     let stopped = expectation(description: "late-attached task stopped")
 
@@ -127,8 +128,8 @@ class RunnerTests: XCTestCase {
     store.finish(42)
   }
 
-  func testAsrOperationCloseCancelsAllAndRejectsNewWork() async throws {
-    let store = AsrOperationStore()
+  func testInferenceOperationCloseCancelsAllAndRejectsNewWork() async throws {
+    let store = InferenceOperationStore(operationKind: "test")
     let first = try store.reserve(1)
     let second = try store.reserve(2)
     let stopped = expectation(description: "all inference tasks stopped")
@@ -150,19 +151,88 @@ class RunnerTests: XCTestCase {
     await fulfillment(of: [stopped], timeout: 1)
     XCTAssertEqual(store.activeCount, 0)
     XCTAssertThrowsError(try store.reserve(3)) { error in
-      guard case AsrOperationStoreError.closed = error else {
+      guard case InferenceOperationStoreError.closed("test") = error else {
         return XCTFail("Unexpected registration error: \(error)")
       }
     }
   }
 
-  func testAsrOperationRejectsDuplicateActiveIdentity() throws {
-    let store = AsrOperationStore()
+  func testInferenceOperationRejectsDuplicateActiveIdentity() throws {
+    let store = InferenceOperationStore(operationKind: "test")
     _ = try store.reserve(7)
     XCTAssertThrowsError(try store.reserve(7)) { error in
-      guard case AsrOperationStoreError.duplicate(7) = error else {
+      guard case InferenceOperationStoreError.duplicate("test", 7) = error else {
         return XCTFail("Unexpected registration error: \(error)")
       }
+    }
+  }
+
+  func testInferenceOperationDeliversCancellationHandlerExactlyOnce() async throws {
+    final class Counter: @unchecked Sendable {
+      private let lock = NSLock()
+      private(set) var value = 0
+
+      func increment() {
+        lock.lock()
+        value += 1
+        lock.unlock()
+      }
+    }
+
+    let store = InferenceOperationStore(operationKind: "test")
+    let operation = try store.reserve(8)
+    let counter = Counter()
+    let cancellation = Task { await store.cancel(8) }
+    await Task.yield()
+    operation.attach(
+      Task<Void, Never> {
+        do {
+          try await Task.sleep(nanoseconds: 60_000_000_000)
+        } catch {
+          // Expected cancellation.
+        }
+      },
+      onCancel: counter.increment)
+
+    async let first: Void = cancellation.value
+    async let second: Void = store.cancel(8)
+    _ = await (first, second)
+
+    XCTAssertEqual(counter.value, 1)
+    store.finish(8)
+  }
+
+  func testOneShotResultCompletionIgnoresLaterTerminalResults() {
+    var values: [Int] = []
+    let completion = OneShotResultCompletion<Int> { result in
+      if case .success(let value) = result {
+        values.append(value)
+      }
+    }
+
+    completion.resolve(.success(1))
+    completion.resolve(.success(2))
+
+    XCTAssertEqual(values, [1])
+  }
+
+  func testDiarizationCancellationSignalStopsAudioSourceReads() throws {
+    let signal = DiarizationCancellationSignal()
+    let source = CancellableDiarizationAudioSource(
+      base: ArrayAudioSampleSource(samples: [0.1, 0.2]), cancellation: signal)
+    var destination = [Float](repeating: 0, count: 2)
+    try destination.withUnsafeMutableBufferPointer { buffer in
+      try source.copySamples(into: buffer.baseAddress!, offset: 0, count: 2)
+    }
+    XCTAssertEqual(destination, [0.1, 0.2])
+
+    signal.cancel()
+    XCTAssertThrowsError(
+      try destination.withUnsafeMutableBufferPointer { buffer in
+        try source.copySamples(into: buffer.baseAddress!, offset: 0, count: 2)
+      }
+    ) { error in
+      XCTAssertTrue(error is CancellationError)
     }
   }
 
