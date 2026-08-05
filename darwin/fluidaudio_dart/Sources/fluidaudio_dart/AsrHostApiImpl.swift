@@ -12,7 +12,7 @@ import Foundation
 final class AsrInstance {
   let manager: AsrManager
   let version: AsrModelVersion
-  let operations = AsrOperationStore()
+  let operations = InferenceOperationStore(operationKind: "ASR")
   private let shutdownLock = NSLock()
   private var shutdownTask: Task<Void, Never>?
 
@@ -45,154 +45,6 @@ final class AsrInstance {
     }
     shutdownTask = task
     return task
-  }
-}
-
-/// Registration failures are programming/protocol errors rather than model
-/// inference failures, so keep them explicit at the channel boundary.
-enum AsrOperationStoreError: LocalizedError {
-  case closed
-  case duplicate(Int64)
-
-  var errorDescription: String? {
-    switch self {
-    case .closed:
-      return "The ASR instance is disposing and cannot start another operation."
-    case .duplicate(let id):
-      return "ASR operation id \(id) is already active for this instance."
-    }
-  }
-}
-
-/// Owns one native inference task and makes a cancellation request that races
-/// task attachment safe. The latter matters because platform messages may be
-/// dispatched on different queues even though task registration is tiny.
-final class AsrInferenceOperation: @unchecked Sendable {
-  private let lock = NSLock()
-  private var task: Task<Void, Never>?
-  private var cancellationRequested = false
-  private var attachmentWaiters: [CheckedContinuation<Task<Void, Never>, Never>] = []
-
-  func attach(_ task: Task<Void, Never>) {
-    lock.lock()
-    precondition(self.task == nil, "An ASR operation task may only be attached once.")
-    self.task = task
-    let shouldCancel = cancellationRequested
-    let waiters = attachmentWaiters
-    attachmentWaiters.removeAll()
-    lock.unlock()
-
-    if shouldCancel {
-      task.cancel()
-    }
-    for waiter in waiters {
-      waiter.resume(returning: task)
-    }
-  }
-
-  /// Completes only when the retained task has observed cancellation and
-  /// returned. Repeated/concurrent requests all await the same task.
-  func cancelAndWait() async {
-    let attached: Task<Void, Never>
-    if let current = requestCancellation() {
-      attached = current
-    } else {
-      attached = await waitForAttachment()
-    }
-    attached.cancel()
-    await attached.value
-  }
-
-  private func requestCancellation() -> Task<Void, Never>? {
-    lock.lock()
-    cancellationRequested = true
-    let attached = task
-    lock.unlock()
-    return attached
-  }
-
-  private func waitForAttachment() async -> Task<Void, Never> {
-    await withCheckedContinuation { continuation in
-      lock.lock()
-      if let attached = task {
-        lock.unlock()
-        continuation.resume(returning: attached)
-      } else {
-        attachmentWaiters.append(continuation)
-        lock.unlock()
-      }
-    }
-  }
-}
-
-/// Lock-protected operation ownership for one loaded recognizer.
-///
-/// Keeping `Task` handles here is the load-bearing cancellation seam: dropping
-/// the Dart `Future` alone cannot stop CoreML inference.
-final class AsrOperationStore: @unchecked Sendable {
-  private let lock = NSLock()
-  private var operations: [Int64: AsrInferenceOperation] = [:]
-  private var isClosed = false
-
-  func reserve(_ id: Int64) throws -> AsrInferenceOperation {
-    lock.lock()
-    defer { lock.unlock() }
-    guard !isClosed else { throw AsrOperationStoreError.closed }
-    guard operations[id] == nil else { throw AsrOperationStoreError.duplicate(id) }
-    let operation = AsrInferenceOperation()
-    operations[id] = operation
-    return operation
-  }
-
-  func finish(_ id: Int64) {
-    lock.lock()
-    operations.removeValue(forKey: id)
-    lock.unlock()
-  }
-
-  func cancel(_ id: Int64) async {
-    let operation = operation(for: id)
-    await operation?.cancelAndWait()
-  }
-
-  func cancelAllAndClose() async {
-    let active = closeAndSnapshot()
-    await withTaskGroup(of: Void.self) { group in
-      for operation in active.values {
-        group.addTask {
-          await operation.cancelAndWait()
-        }
-      }
-    }
-    for id in active.keys {
-      finish(id)
-    }
-  }
-
-  func close() {
-    lock.lock()
-    isClosed = true
-    lock.unlock()
-  }
-
-  var activeCount: Int {
-    lock.lock()
-    defer { lock.unlock() }
-    return operations.count
-  }
-
-  private func operation(for id: Int64) -> AsrInferenceOperation? {
-    lock.lock()
-    defer { lock.unlock() }
-    return operations[id]
-  }
-
-  private func closeAndSnapshot() -> [Int64: AsrInferenceOperation] {
-    lock.lock()
-    isClosed = true
-    let active = operations
-    lock.unlock()
-    return active
   }
 }
 
@@ -249,7 +101,7 @@ final class AsrHostApiImpl: AsrHostApi {
       completion(.failure(ErrorMapping.instanceNotFound(instanceId, kind: "ASR")))
       return
     }
-    let operation: AsrInferenceOperation
+    let operation: RetainedInferenceOperation
     do {
       operation = try instance.operations.reserve(operationId)
     } catch {

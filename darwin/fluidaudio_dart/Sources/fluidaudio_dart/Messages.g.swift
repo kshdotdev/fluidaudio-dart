@@ -2343,9 +2343,14 @@ protocol DiarizerHostApi {
   /// instance id. Speaker-count knobs mirror FluidAudio's clustering config.
   func create(clusteringThreshold: Double, numSpeakers: Int64?, minSpeakers: Int64?, maxSpeakers: Int64?, exposeChunkEmbeddings: Bool, progressToken: Int64, completion: @escaping (Result<Int64, Error>) -> Void)
   /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
-  /// `diarizationProgress` stream tagged with the instance id.
-  func diarizeSamples(instanceId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
-  func diarizeFile(instanceId: Int64, path: String, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
+  /// `diarizationProgress` stream tagged with the instance id. [operationId]
+  /// is caller-allocated and unique within [instanceId].
+  func diarizeSamples(instanceId: Int64, operationId: Int64, float32Samples: FlutterStandardTypedData, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
+  func diarizeFile(instanceId: Int64, operationId: Int64, path: String, completion: @escaping (Result<DiarizationResultMessage, Error>) -> Void)
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained diarization task has unwound. Unknown/finished ids are a no-op.
+  func cancel(instanceId: Int64, operationId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
+  /// Cancels every active operation before releasing the diarizer models.
   func dispose(instanceId: Int64, completion: @escaping (Result<Void, Error>) -> Void)
 }
 
@@ -2380,14 +2385,16 @@ class DiarizerHostApiSetup {
       createChannel.setMessageHandler(nil)
     }
     /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
-    /// `diarizationProgress` stream tagged with the instance id.
+    /// `diarizationProgress` stream tagged with the instance id. [operationId]
+    /// is caller-allocated and unique within [instanceId].
     let diarizeSamplesChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.diarizeSamples\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       diarizeSamplesChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let instanceIdArg = args[0] as! Int64
-        let float32SamplesArg = args[1] as! FlutterStandardTypedData
-        api.diarizeSamples(instanceId: instanceIdArg, float32Samples: float32SamplesArg) { result in
+        let operationIdArg = args[1] as! Int64
+        let float32SamplesArg = args[2] as! FlutterStandardTypedData
+        api.diarizeSamples(instanceId: instanceIdArg, operationId: operationIdArg, float32Samples: float32SamplesArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -2404,8 +2411,9 @@ class DiarizerHostApiSetup {
       diarizeFileChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
         let instanceIdArg = args[0] as! Int64
-        let pathArg = args[1] as! String
-        api.diarizeFile(instanceId: instanceIdArg, path: pathArg) { result in
+        let operationIdArg = args[1] as! Int64
+        let pathArg = args[2] as! String
+        api.diarizeFile(instanceId: instanceIdArg, operationId: operationIdArg, path: pathArg) { result in
           switch result {
           case .success(let res):
             reply(wrapResult(res))
@@ -2417,6 +2425,27 @@ class DiarizerHostApiSetup {
     } else {
       diarizeFileChannel.setMessageHandler(nil)
     }
+    /// Requests cooperative native cancellation and completes only after the
+    /// retained diarization task has unwound. Unknown/finished ids are a no-op.
+    let cancelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.cancel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      cancelChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let instanceIdArg = args[0] as! Int64
+        let operationIdArg = args[1] as! Int64
+        api.cancel(instanceId: instanceIdArg, operationId: operationIdArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      cancelChannel.setMessageHandler(nil)
+    }
+    /// Cancels every active operation before releasing the diarizer models.
     let disposeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.DiarizerHostApi.dispose\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       disposeChannel.setMessageHandler { message, reply in

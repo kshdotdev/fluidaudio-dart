@@ -449,13 +449,21 @@ abstract class DiarizerHostApi {
   );
 
   /// Diarizes 16 kHz mono float32 samples. Per-chunk progress arrives on the
-  /// `diarizationProgress` stream tagged with the instance id.
+  /// `diarizationProgress` stream tagged with the instance id. [operationId]
+  /// is caller-allocated and unique within [instanceId].
   @async
-  DiarizationResultMessage diarizeSamples(int instanceId, Uint8List float32Samples);
+  DiarizationResultMessage diarizeSamples(
+      int instanceId, int operationId, Uint8List float32Samples);
 
   @async
-  DiarizationResultMessage diarizeFile(int instanceId, String path);
+  DiarizationResultMessage diarizeFile(int instanceId, int operationId, String path);
 
+  /// Requests cooperative native cancellation and completes only after the
+  /// retained diarization task has unwound. Unknown/finished ids are a no-op.
+  @async
+  void cancel(int instanceId, int operationId);
+
+  /// Cancels every active operation before releasing the diarizer models.
   @async
   void dispose(int instanceId);
 }

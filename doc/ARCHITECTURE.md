@@ -24,10 +24,11 @@ and drift-checked in CI.
 - **Instance ids**: every create/load host call returns an `int` id addressing
   a native object in `InstanceRegistry`; `dispose(id)` releases it. Dart
   classes carry a `Finalizer` backstop that disposes on GC.
-- **Batch-ASR operation ids**: every one-shot transcription carries a
-  caller-allocated id. `AsrOperationStore` retains the corresponding Swift
-  `Task`; `cancel(instanceId, operationId)` cancels and awaits that task, while
-  recognizer disposal cancels and awaits all tasks before model cleanup.
+- **Batch operation ids**: every one-shot ASR and offline-diarization call
+  carries a caller-allocated id. `InferenceOperationStore` retains the
+  corresponding Swift `Task`; `cancel(instanceId, operationId)` cancels and
+  awaits that task, while instance disposal closes the store and awaits every
+  task before model release.
 - **Audio bytes**: pigeon has no Float32List, so audio crosses the channel as
   little-endian float32 bytes (`Uint8List`); Dart facades expose `Float32List`
   via zero-copy buffer views (`lib/src/audio_bytes.dart`).
@@ -70,10 +71,15 @@ and drift-checked in CI.
    `publish`/`detachFromEngine`, macOS via a registrar-retained instance whose
    `deinit` fires on engine death. Teardown stops captures and releases every
    registry instance.
-9. **Cancellation means task termination**: batch-ASR `cancel` does not merely
-   abandon a Dart future. It completes after the retained native inference
-   task has unwound. FluidAudio cancellation is cooperative around CoreML
-   calls, so release latency remains an integration performance gate.
+9. **Cancellation means task termination**: batch ASR and diarization `cancel`
+   do not merely abandon a Dart future. They complete after the retained native
+   inference task has unwound. A cancellable `AudioSampleSource` propagates the
+   diarization signal into FluidAudio's detached segmentation/embedding tasks;
+   CoreML prediction itself remains cooperative, so release latency is an
+   integration performance gate.
+10. **Exactly-once terminal replies**: diarization task success, cancellation,
+    disposal and inference failures may race, but `OneShotResultCompletion`
+    publishes only the first terminal Pigeon result.
 
 ## Capture (deprecated since 0.4.0)
 
@@ -98,9 +104,9 @@ FluidAudio session from it costs a channel hop per buffer. The session-side
 ## Verification
 
 - `flutter test` — facade unit tests with fake host APIs (no channels).
-- `example/macos/RunnerTests` — Swift tests incl. ASR task cancellation,
-  SerialTaskQueue FIFO order and SampleChunker (run via `xcodebuild test`,
-  wired into CI).
+- `example/macos/RunnerTests` — Swift tests incl. retained task cancellation,
+  diarization cancellation propagation, one-shot completion, SerialTaskQueue
+  FIFO order and SampleChunker (run via `xcodebuild test`, wired into CI).
 - `example/integration_test/plugin_integration_test.dart` — model-free
   channel e2e (CI PR path).
 - `example/integration_test/real_models_test.dart` — real CoreML inference
