@@ -42,6 +42,22 @@ final class CtcVocabularyHostApiImpl: CtcVocabularyHostApi {
         let models = try await CtcModels.downloadAndLoad(
           to: ctcDirectory, variant: .ctc110m)
         let tokenizer = try await CtcTokenizer.load(from: ctcDirectory)
+        // Upstream streaming vocabulary boosting re-resolves the tokenizer
+        // from the DEFAULT cache with no directory hook
+        // (SlidingWindowAsrManager.configureVocabularyBoosting), so mirror
+        // tokenizer.json there when a host models root is active.
+        let defaultDirectory = CtcModels.defaultCacheDirectory(for: .ctc110m)
+        if defaultDirectory.path != ctcDirectory.path {
+          let fileManager = FileManager.default
+          try fileManager.createDirectory(
+            at: defaultDirectory, withIntermediateDirectories: true)
+          let source = ctcDirectory.appendingPathComponent("tokenizer.json")
+          let target = defaultDirectory.appendingPathComponent("tokenizer.json")
+          if fileManager.fileExists(atPath: target.path) {
+            try fileManager.removeItem(at: target)
+          }
+          try fileManager.copyItem(at: source, to: target)
+        }
         ModelPaths.registerInstanceCreated()
 
         let vocabularyTerms = terms.map { term in

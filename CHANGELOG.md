@@ -16,7 +16,13 @@
   so a missing pinned artifact fails loudly instead of being re-downloaded
   from HuggingFace into the host's directory.
 - Known upstream limitation: the English Kokoro G2P assets always resolve from
-  FluidAudio's own TTS cache (`G2PModel` has no directory hook).
+  FluidAudio's own TTS cache (`G2PModel` has no directory hook). `download`
+  and `isDownloaded` for `ModelKind.kokoro` therefore stage and probe the G2P
+  assets at the default cache even when a `ttsRoot` override is active.
+- Upstream streaming vocabulary boosting re-resolves the CTC tokenizer from
+  the default cache with no directory hook; loading a CTC vocabulary under a
+  host models root mirrors `tokenizer.json` into the default cache so
+  `configureVocabulary` on a streaming recognizer keeps working.
 - VAD creation now loads through `ModelHub` at the resolved models root;
   behavior at the default root is unchanged.
 

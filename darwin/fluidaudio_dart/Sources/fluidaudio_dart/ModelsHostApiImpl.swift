@@ -55,8 +55,16 @@ final class ModelsHostApiImpl: ModelsHostApi {
 
   /// `<tts>/Models/kokoro` — the shared G2P (text → IPA) assets every Kokoro
   /// variant loads; downloaded separately from the voice bundle upstream.
+  ///
+  /// Deliberately resolved at the DEFAULT TTS cache, never the host override:
+  /// upstream `KokoroAneManager.initialize()`/`G2PModel` read G2P assets from
+  /// `TtsCacheDirectory` unconditionally (no directory hook), so staging or
+  /// probing them anywhere else would put bytes where nothing ever reads.
   private func kokoroG2pDirectory() throws -> URL {
-    try ttsModelsRoot(KokoroAneResourceDownloader.modelsSubdirectory)
+    try TtsCacheDirectory.ensure()
+      .appendingPathComponent(
+        KokoroAneResourceDownloader.modelsSubdirectory, isDirectory: true
+      )
       .appendingPathComponent(Repo.kokoro.folderName, isDirectory: true)
   }
 
@@ -196,8 +204,10 @@ final class ModelsHostApiImpl: ModelsHostApi {
               KokoroAneResourceDownloader.modelsSubdirectory)
             _ = try await KokoroAneResourceDownloader.ensureModels(
               variant: .english, directory: kokoroModels, progressHandler: handler)
+            // G2P must land in the default cache: the loader has no hook (see
+            // kokoroG2pDirectory).
             try await KokoroAneResourceDownloader.ensureG2PAssets(
-              directory: kokoroModels, progressHandler: handler)
+              progressHandler: handler)
           case .pocketTts:
             _ = try await PocketTtsResourceDownloader.ensureModels(
               language: .english, directory: try ModelPaths.ttsRoot(),
