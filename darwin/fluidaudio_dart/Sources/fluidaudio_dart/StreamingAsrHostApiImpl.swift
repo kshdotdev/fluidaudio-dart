@@ -64,9 +64,11 @@ final class StreamingAsrHostApiImpl: StreamingAsrHostApi {
     Task {
       do {
         let models = try await AsrModels.downloadAndLoad(
+          to: ModelPaths.asrRepoDirectory(modelVersion),
           version: modelVersion, progressHandler: handler)
         let manager = SlidingWindowAsrManager(config: Self.config(from: config))
         try await manager.loadModels(models)
+        ModelPaths.registerInstanceCreated()
         let instance = StreamingAsrInstance(manager: manager)
         let id = self.registry.add(instance)
         // Subscribe BEFORE startStreaming so no update is dropped (ectos rule).

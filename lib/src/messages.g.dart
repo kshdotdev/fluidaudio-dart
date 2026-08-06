@@ -689,6 +689,61 @@ class VadStreamEventMessage {
   }
 }
 
+/// Host-managed model root directories. Null fields fall back to FluidAudio's
+/// own caches.
+class ModelRootsMessage {
+  ModelRootsMessage({
+    this.modelsRoot,
+    this.ttsRoot,
+  });
+
+  /// Directory containing one subdirectory per model repo
+  /// (`<modelsRoot>/<repoFolderName>/<files>`).
+  String? modelsRoot;
+
+  /// Directory used for TTS voice and cache artifacts.
+  String? ttsRoot;
+
+  List<Object?> _toList() {
+    return <Object?>[
+      modelsRoot,
+      ttsRoot,
+    ];
+  }
+
+  Object encode() {
+    return _toList();  }
+
+  static ModelRootsMessage decode(Object result) {
+    result as List<Object?>;
+    return ModelRootsMessage(
+      modelsRoot: result[0] as String?,
+      ttsRoot: result[1] as String?,
+    );
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  bool operator ==(Object other) {
+    if (other is! ModelRootsMessage || other.runtimeType != runtimeType) {
+      return false;
+    }
+    if (identical(this, other)) {
+      return true;
+    }
+    return _deepEquals(modelsRoot, other.modelsRoot) && _deepEquals(ttsRoot, other.ttsRoot);
+  }
+
+  @override
+  // ignore: avoid_equals_and_hash_code_on_mutable_classes
+  int get hashCode => _deepHash(<Object?>[runtimeType, ..._toList()]);
+
+  @override
+  String toString() {
+    return 'ModelRootsMessage(modelsRoot: $modelsRoot, ttsRoot: $ttsRoot)';
+  }
+}
+
 class StreamingConfigMessage {
   StreamingConfigMessage({
     this.chunkSeconds,
@@ -1683,50 +1738,53 @@ class _PigeonCodec extends StandardMessageCodec {
     }    else if (value is VadStreamEventMessage) {
       buffer.putUint8(144);
       writeValue(buffer, value.encode());
-    }    else if (value is StreamingConfigMessage) {
+    }    else if (value is ModelRootsMessage) {
       buffer.putUint8(145);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationSegmentMessage) {
+    }    else if (value is StreamingConfigMessage) {
       buffer.putUint8(146);
       writeValue(buffer, value.encode());
-    }    else if (value is SpeakerEmbeddingMessage) {
+    }    else if (value is DiarizationSegmentMessage) {
       buffer.putUint8(147);
       writeValue(buffer, value.encode());
-    }    else if (value is ChunkEmbeddingMessage) {
+    }    else if (value is SpeakerEmbeddingMessage) {
       buffer.putUint8(148);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationTimingsMessage) {
+    }    else if (value is ChunkEmbeddingMessage) {
       buffer.putUint8(149);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationResultMessage) {
+    }    else if (value is DiarizationTimingsMessage) {
       buffer.putUint8(150);
       writeValue(buffer, value.encode());
-    }    else if (value is DiarizationProgressMessage) {
+    }    else if (value is DiarizationResultMessage) {
       buffer.putUint8(151);
       writeValue(buffer, value.encode());
-    }    else if (value is EouEventMessage) {
+    }    else if (value is DiarizationProgressMessage) {
       buffer.putUint8(152);
       writeValue(buffer, value.encode());
-    }    else if (value is VocabularyTermMessage) {
+    }    else if (value is EouEventMessage) {
       buffer.putUint8(153);
       writeValue(buffer, value.encode());
-    }    else if (value is VocabularyRescoreMessage) {
+    }    else if (value is VocabularyTermMessage) {
       buffer.putUint8(154);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsResultMessage) {
+    }    else if (value is VocabularyRescoreMessage) {
       buffer.putUint8(155);
       writeValue(buffer, value.encode());
-    }    else if (value is TtsChunkMessage) {
+    }    else if (value is TtsResultMessage) {
       buffer.putUint8(156);
       writeValue(buffer, value.encode());
-    }    else if (value is MicFrameMessage) {
+    }    else if (value is TtsChunkMessage) {
       buffer.putUint8(157);
       writeValue(buffer, value.encode());
-    }    else if (value is CaptureHealthMessage) {
+    }    else if (value is MicFrameMessage) {
       buffer.putUint8(158);
       writeValue(buffer, value.encode());
-    }    else if (value is AudioProcessMessage) {
+    }    else if (value is CaptureHealthMessage) {
       buffer.putUint8(159);
+      writeValue(buffer, value.encode());
+    }    else if (value is AudioProcessMessage) {
+      buffer.putUint8(160);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -1777,34 +1835,36 @@ class _PigeonCodec extends StandardMessageCodec {
       case 144:
         return VadStreamEventMessage.decode(readValue(buffer)!);
       case 145:
-        return StreamingConfigMessage.decode(readValue(buffer)!);
+        return ModelRootsMessage.decode(readValue(buffer)!);
       case 146:
-        return DiarizationSegmentMessage.decode(readValue(buffer)!);
+        return StreamingConfigMessage.decode(readValue(buffer)!);
       case 147:
-        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
+        return DiarizationSegmentMessage.decode(readValue(buffer)!);
       case 148:
-        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
+        return SpeakerEmbeddingMessage.decode(readValue(buffer)!);
       case 149:
-        return DiarizationTimingsMessage.decode(readValue(buffer)!);
+        return ChunkEmbeddingMessage.decode(readValue(buffer)!);
       case 150:
-        return DiarizationResultMessage.decode(readValue(buffer)!);
+        return DiarizationTimingsMessage.decode(readValue(buffer)!);
       case 151:
-        return DiarizationProgressMessage.decode(readValue(buffer)!);
+        return DiarizationResultMessage.decode(readValue(buffer)!);
       case 152:
-        return EouEventMessage.decode(readValue(buffer)!);
+        return DiarizationProgressMessage.decode(readValue(buffer)!);
       case 153:
-        return VocabularyTermMessage.decode(readValue(buffer)!);
+        return EouEventMessage.decode(readValue(buffer)!);
       case 154:
-        return VocabularyRescoreMessage.decode(readValue(buffer)!);
+        return VocabularyTermMessage.decode(readValue(buffer)!);
       case 155:
-        return TtsResultMessage.decode(readValue(buffer)!);
+        return VocabularyRescoreMessage.decode(readValue(buffer)!);
       case 156:
-        return TtsChunkMessage.decode(readValue(buffer)!);
+        return TtsResultMessage.decode(readValue(buffer)!);
       case 157:
-        return MicFrameMessage.decode(readValue(buffer)!);
+        return TtsChunkMessage.decode(readValue(buffer)!);
       case 158:
-        return CaptureHealthMessage.decode(readValue(buffer)!);
+        return MicFrameMessage.decode(readValue(buffer)!);
       case 159:
+        return CaptureHealthMessage.decode(readValue(buffer)!);
+      case 160:
         return AudioProcessMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1898,6 +1958,48 @@ class ModelsHostApi {
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
 
   final String pigeonVar_messageChannelSuffix;
+
+  /// Points every model kind at host-managed directories.
+  ///
+  /// Must be called before any model instance exists; passing null (or null
+  /// fields) restores FluidAudio's own caches.
+  Future<void> setModelRoots(ModelRootsMessage? roots) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.setModelRoots$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[roots]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  /// The roots currently in effect, with defaults resolved to real paths.
+  Future<ModelRootsMessage> modelRoots() async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.modelRoots$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    ;
+    return pigeonVar_replyValue! as ModelRootsMessage;
+  }
 
   Future<bool> isDownloaded(ModelKindMessage kind) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.isDownloaded$pigeonVar_messageChannelSuffix';

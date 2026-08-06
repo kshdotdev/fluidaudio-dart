@@ -1,6 +1,7 @@
 // End-to-end tests that exercise the real native plugin (no models needed).
 //
 // Run with: flutter test integration_test -d macos
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -43,5 +44,43 @@ void main() {
     expect(received.last.sequence, 4);
     expect(received.first.payload, isNotNull);
     expect(received.first.payload, hasLength(2));
+  });
+
+  testWidgets('model roots round-trip, restore, and reject bad paths',
+      (tester) async {
+    final models = FluidModels();
+    final defaults = await models.modelRoots();
+    expect(defaults.modelsRoot, isNotEmpty);
+    expect(defaults.ttsRoot, isNotEmpty);
+
+    final scratch = await Directory.systemTemp.createTemp('fluid_roots.');
+    addTearDown(() => scratch.delete(recursive: true));
+
+    await models.setModelRoots(FluidModelRoots(modelsRoot: scratch.path));
+    final overridden = await models.modelRoots();
+    expect(overridden.modelsRoot, scratch.path);
+    // TTS root keeps its default when not overridden.
+    expect(overridden.ttsRoot, defaults.ttsRoot);
+    // Local folder names strip the upstream "-coreml" suffix.
+    expect(
+      await models.cacheDirectory(ModelKind.parakeetV3),
+      '${scratch.path}/parakeet-tdt-0.6b-v3',
+    );
+
+    // Null restores FluidAudio's own caches.
+    await models.setModelRoots(null);
+    final restored = await models.modelRoots();
+    expect(restored.modelsRoot, defaults.modelsRoot);
+
+    // A path that is not an existing directory is rejected.
+    await expectLater(
+      models.setModelRoots(
+        FluidModelRoots(modelsRoot: '${scratch.path}/does-not-exist'),
+      ),
+      throwsA(
+        isA<FluidAudioException>()
+            .having((error) => error.code, 'code', 'ModelRootsInvalid'),
+      ),
+    );
   });
 }

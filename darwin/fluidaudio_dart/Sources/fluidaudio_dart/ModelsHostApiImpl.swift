@@ -41,9 +41,10 @@ final class ModelsHostApiImpl: ModelsHostApi {
 
   /// The TTS backends cache under FluidAudio's shared TTS root
   /// (`~/.cache/fluidaudio` on macOS, Application Support on iOS) — a
-  /// different tree from the ASR/diarizer models root.
+  /// different tree from the ASR/diarizer models root. Honors the host
+  /// override set through `setModelRoots`.
   private func ttsModelsRoot(_ subdirectory: String) throws -> URL {
-    try TtsCacheDirectory.ensure().appendingPathComponent(subdirectory, isDirectory: true)
+    try ModelPaths.ttsRoot().appendingPathComponent(subdirectory, isDirectory: true)
   }
 
   /// `<tts>/Models/kokoro-82m-coreml/ANE` — the English ANE bundle.
@@ -81,7 +82,7 @@ final class ModelsHostApiImpl: ModelsHostApi {
     case .kokoro: return try kokoroDirectory()
     case .pocketTts: return try pocketTtsDirectory()
     case .vad, .parakeetV2, .parakeetV3, .eou, .diarizer, .ctc110m:
-      return MLModelConfigurationUtils.defaultModelsDirectory(for: repo(for: kind))
+      return ModelPaths.repoDirectory(repo(for: kind))
     }
   }
 
@@ -115,7 +116,7 @@ final class ModelsHostApiImpl: ModelsHostApi {
 
   func isDownloaded(kind: ModelKindMessage, completion: @escaping (Result<Bool, Error>) -> Void) {
     if let version = asrVersion(for: kind) {
-      let directory = AsrModels.defaultCacheDirectory(for: version)
+      let directory = ModelPaths.repoDirectory(repo(for: kind))
       completion(.success(AsrModels.modelsExist(at: directory, version: version)))
       return
     }
@@ -143,7 +144,7 @@ final class ModelsHostApiImpl: ModelsHostApi {
         completion(.success(allFilesExist(ModelNames.PocketTTS.requiredModels, in: directory)))
       case .vad, .parakeetV2, .parakeetV3:
         // VAD: the repo folder existing and being non-empty is the best public check.
-        let directory = MLModelConfigurationUtils.defaultModelsDirectory(for: repo(for: kind))
+        let directory = ModelPaths.repoDirectory(repo(for: kind))
         let contents =
           (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         completion(.success(!contents.isEmpty))
@@ -161,7 +162,9 @@ final class ModelsHostApiImpl: ModelsHostApi {
     Task {
       do {
         if let version = self.asrVersion(for: kind) {
-          _ = try await AsrModels.download(version: version, progressHandler: handler)
+          _ = try await AsrModels.download(
+            to: ModelPaths.repoDirectory(self.repo(for: kind)),
+            version: version, progressHandler: handler)
         } else {
           switch kind {
           case .eou:
@@ -177,7 +180,7 @@ final class ModelsHostApiImpl: ModelsHostApi {
             // The "offline" variant is the file set OfflineDiarizerModels.load
             // asks for — FluidDiarizer's pipeline.
             try await ModelHub.download(
-              .diarizer, to: MLModelConfigurationUtils.defaultModelsDirectory(),
+              .diarizer, to: ModelPaths.modelsRoot,
               variant: "offline", progressHandler: handler)
           case .ctc110m:
             // CtcModels.download has no ProgressHandler hook; emit coarse
@@ -186,17 +189,28 @@ final class ModelsHostApiImpl: ModelsHostApi {
             self.downloadProgress.emit(
               progressToken: progressToken,
               progress: DownloadProgress(fractionCompleted: 0.0, phase: .listing))
-            _ = try await CtcModels.download(variant: .ctc110m)
+            _ = try await CtcModels.download(
+              to: ModelPaths.repoDirectory(self.repo(for: kind)), variant: .ctc110m)
           case .kokoro:
+            let kokoroModels = try self.ttsModelsRoot(
+              KokoroAneResourceDownloader.modelsSubdirectory)
             _ = try await KokoroAneResourceDownloader.ensureModels(
-              variant: .english, progressHandler: handler)
-            try await KokoroAneResourceDownloader.ensureG2PAssets(progressHandler: handler)
+              variant: .english, directory: kokoroModels, progressHandler: handler)
+            try await KokoroAneResourceDownloader.ensureG2PAssets(
+              directory: kokoroModels, progressHandler: handler)
           case .pocketTts:
             _ = try await PocketTtsResourceDownloader.ensureModels(
-              language: .english, progressHandler: handler)
+              language: .english, directory: try ModelPaths.ttsRoot(),
+              progressHandler: handler)
           case .vad, .parakeetV2, .parakeetV3:
-            // VAD models download inside the manager's async init.
-            _ = try await VadManager(config: .default, progressHandler: handler)
+            // ModelHub downloads and compiles into the resolved models root —
+            // the same load path VadHostApiImpl uses (VadManager's own default
+            // init resolves a private root that ignores the override).
+            _ = try await ModelHub.loadModels(
+              .vad, modelNames: Array(ModelNames.VAD.requiredModels),
+              directory: ModelPaths.modelsRoot,
+              computeUnits: VadConfig.default.computeUnits,
+              progressHandler: handler)
           }
         }
         self.downloadProgress.emitCompleted(progressToken: progressToken)
@@ -233,5 +247,30 @@ final class ModelsHostApiImpl: ModelsHostApi {
   func setOfflineMode(enabled: Bool, completion: @escaping (Result<Void, Error>) -> Void) {
     ModelHub.offlineMode = enabled
     completion(.success(()))
+  }
+
+  func setModelRoots(
+    roots: ModelRootsMessage?, completion: @escaping (Result<Void, Error>) -> Void
+  ) {
+    do {
+      try ModelPaths.setRoots(
+        models: (roots?.modelsRoot).map { URL(fileURLWithPath: $0, isDirectory: true) },
+        tts: (roots?.ttsRoot).map { URL(fileURLWithPath: $0, isDirectory: true) })
+      completion(.success(()))
+    } catch let error as PigeonError {
+      completion(.failure(error))
+    } catch {
+      completion(.failure(ErrorMapping.map(error)))
+    }
+  }
+
+  func modelRoots(completion: @escaping (Result<ModelRootsMessage, Error>) -> Void) {
+    do {
+      let roots = try ModelPaths.currentRoots()
+      completion(
+        .success(ModelRootsMessage(modelsRoot: roots.models.path, ttsRoot: roots.tts.path)))
+    } catch {
+      completion(.failure(ErrorMapping.map(error)))
+    }
   }
 }

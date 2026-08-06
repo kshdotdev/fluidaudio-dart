@@ -109,10 +109,14 @@ final class TtsHostApiImpl: TtsHostApi {
     let kokoroVariant = Self.variant(for: variant)
     Task {
       do {
+        let kokoroModels = try ModelPaths.ttsRoot().appendingPathComponent(
+          KokoroAneResourceDownloader.modelsSubdirectory, isDirectory: true)
         _ = try await KokoroAneResourceDownloader.ensureModels(
-          variant: kokoroVariant, progressHandler: handler)
-        let manager = KokoroAneManager(variant: kokoroVariant, defaultVoice: defaultVoice)
+          variant: kokoroVariant, directory: kokoroModels, progressHandler: handler)
+        let manager = KokoroAneManager(
+          variant: kokoroVariant, defaultVoice: defaultVoice, directory: kokoroModels)
         try await manager.initialize()
+        ModelPaths.registerInstanceCreated()
         let id = self.registry.add(KokoroInstance(manager: manager))
         self.downloadProgress.emitCompleted(progressToken: progressToken)
         completion(.success(id))
@@ -176,11 +180,14 @@ final class TtsHostApiImpl: TtsHostApi {
     let handler = downloadProgress.progressHandler(for: progressToken)
     Task {
       do {
+        let ttsRoot = try ModelPaths.ttsRoot()
         _ = try await PocketTtsResourceDownloader.ensureModels(
-          language: .english, progressHandler: handler)
+          language: .english, directory: ttsRoot, progressHandler: handler)
         let manager = PocketTtsManager(
-          defaultVoice: defaultVoice ?? PocketTtsConstants.defaultVoice)
+          defaultVoice: defaultVoice ?? PocketTtsConstants.defaultVoice,
+          directory: ttsRoot)
         try await manager.initialize()
+        ModelPaths.registerInstanceCreated()
         let id = self.registry.add(PocketInstance(manager: manager))
         self.downloadProgress.emitCompleted(progressToken: progressToken)
         completion(.success(id))

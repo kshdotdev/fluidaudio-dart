@@ -50,6 +50,23 @@ class _FakeModelsHostApi implements messages.ModelsHostApi {
   Future<void> setOfflineMode(bool enabled) async {
     offlineMode = enabled;
   }
+
+  final List<messages.ModelRootsMessage?> setModelRootsCalls = [];
+  Object? setModelRootsError;
+  messages.ModelRootsMessage resolvedRoots = messages.ModelRootsMessage(
+    modelsRoot: '/default/FluidAudio/Models',
+    ttsRoot: '/default/.cache/fluidaudio',
+  );
+
+  @override
+  Future<void> setModelRoots(messages.ModelRootsMessage? roots) async {
+    final error = setModelRootsError;
+    if (error != null) throw error;
+    setModelRootsCalls.add(roots);
+  }
+
+  @override
+  Future<messages.ModelRootsMessage> modelRoots() async => resolvedRoots;
 }
 
 Future<void> _pump() => Future<void>.delayed(Duration.zero);
@@ -174,6 +191,55 @@ void main() {
       await _pump();
       expect(errors.single, isA<FluidDownloadException>());
       expect(done, isTrue);
+    });
+
+    test('setModelRoots passes both roots through and null clears them',
+        () async {
+      final api = _FakeModelsHostApi();
+      final models = FluidModels(hostApi: api, events: FluidEventHub.test());
+
+      await models.setModelRoots(
+        const FluidModelRoots(modelsRoot: '/host/models', ttsRoot: '/host/tts'),
+      );
+      await models.setModelRoots(const FluidModelRoots(modelsRoot: '/only'));
+      await models.setModelRoots(null);
+
+      expect(api.setModelRootsCalls, hasLength(3));
+      expect(api.setModelRootsCalls[0]?.modelsRoot, '/host/models');
+      expect(api.setModelRootsCalls[0]?.ttsRoot, '/host/tts');
+      expect(api.setModelRootsCalls[1]?.modelsRoot, '/only');
+      expect(api.setModelRootsCalls[1]?.ttsRoot, isNull);
+      expect(api.setModelRootsCalls[2], isNull);
+    });
+
+    test('modelRoots reports the resolved defaults', () async {
+      final api = _FakeModelsHostApi();
+      final models = FluidModels(hostApi: api, events: FluidEventHub.test());
+
+      expect(
+        await models.modelRoots(),
+        const FluidModelRoots(
+          modelsRoot: '/default/FluidAudio/Models',
+          ttsRoot: '/default/.cache/fluidaudio',
+        ),
+      );
+    });
+
+    test('a locked or invalid native root surfaces a typed exception',
+        () async {
+      final api = _FakeModelsHostApi()
+        ..setModelRootsError = PlatformException(
+            code: 'ModelRootsLocked',
+            message: 'roots cannot change after a model instance was created');
+      final models = FluidModels(hostApi: api, events: FluidEventHub.test());
+
+      await expectLater(
+        models.setModelRoots(const FluidModelRoots(modelsRoot: '/late')),
+        throwsA(
+          isA<FluidAudioException>()
+              .having((error) => error.code, 'code', 'ModelRootsLocked'),
+        ),
+      );
     });
 
     test('remove, cacheDirectory and setOfflineMode pass through', () async {

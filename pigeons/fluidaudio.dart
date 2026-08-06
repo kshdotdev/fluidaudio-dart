@@ -187,8 +187,32 @@ class VadStreamEventMessage {
   double? timeSeconds;
 }
 
+/// Host-managed model root directories. Null fields fall back to FluidAudio's
+/// own caches.
+class ModelRootsMessage {
+  ModelRootsMessage({this.modelsRoot, this.ttsRoot});
+
+  /// Directory containing one subdirectory per model repo
+  /// (`<modelsRoot>/<repoFolderName>/<files>`).
+  String? modelsRoot;
+
+  /// Directory used for TTS voice and cache artifacts.
+  String? ttsRoot;
+}
+
 @HostApi()
 abstract class ModelsHostApi {
+  /// Points every model kind at host-managed directories.
+  ///
+  /// Must be called before any model instance exists; passing null (or null
+  /// fields) restores FluidAudio's own caches.
+  @async
+  void setModelRoots(ModelRootsMessage? roots);
+
+  /// The roots currently in effect, with defaults resolved to real paths.
+  @async
+  ModelRootsMessage modelRoots();
+
   @async
   bool isDownloaded(ModelKindMessage kind);
 

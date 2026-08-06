@@ -26,7 +26,7 @@ export 'src/exceptions.dart'
         FluidOperationCancelledException;
 export 'src/itn.dart' show FluidItn;
 export 'src/microphone.dart' show FluidMicFrame, FluidMicrophone;
-export 'src/models.dart' show FluidModels;
+export 'src/models.dart' show FluidModelRoots, FluidModels;
 export 'src/streaming_asr.dart' show FluidStreamingAsr;
 export 'src/system.dart' show FluidAudioSystem, FluidDebugEvent, FluidSystemInfo;
 export 'src/system_audio.dart' show FluidAudioProcess, FluidSystemAudio;

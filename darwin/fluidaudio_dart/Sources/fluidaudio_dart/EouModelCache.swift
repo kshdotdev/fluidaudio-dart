@@ -13,8 +13,9 @@ import Foundation
 /// written through the doubled layout (fluidaudio_dart 0.1.0) are migrated in
 /// place to keep the ~450 MB download.
 enum EouModelCache {
-  /// The models root shared by every kind: `.../FluidAudio/Models`.
-  static var modelsRoot: URL { MLModelConfigurationUtils.defaultModelsDirectory() }
+  /// The models root shared by every kind — honors the host override set
+  /// through `ModelsHostApi.setModelRoots`.
+  static var modelsRoot: URL { ModelPaths.modelsRoot }
 
   /// First segment of every EOU repo's `folderName`, and the name of the
   /// legacy doubled parent directory.

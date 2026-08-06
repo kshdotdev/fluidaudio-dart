@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+**Host-managed model roots**
+- `FluidModels.setModelRoots(FluidModelRoots?)` / `modelRoots()` point every
+  model kind at host-managed directories instead of FluidAudio's own caches.
+  `modelsRoot` covers ASR, VAD, diarizer, EOU, and CTC repos
+  (`<modelsRoot>/<repoFolderName>/<files>`); `ttsRoot` covers the TTS tree.
+  `cacheDirectory(kind)` reports the resolved per-kind path, so hosts can
+  verify their layout through the existing API.
+- Roots must be set before any model instance exists; the native side rejects
+  later mutation (`ModelRootsLocked`) because compiled models are cached per
+  process, and rejects paths that are not existing directories
+  (`ModelRootsInvalid`). Pair a host-managed root with `setOfflineMode(true)`
+  so a missing pinned artifact fails loudly instead of being re-downloaded
+  from HuggingFace into the host's directory.
+- Known upstream limitation: the English Kokoro G2P assets always resolve from
+  FluidAudio's own TTS cache (`G2PModel` has no directory hook).
+- VAD creation now loads through `ModelHub` at the resolved models root;
+  behavior at the default root is unchanged.
+
 **Batch ASR cancellation**
 - `FluidAsr.startTranscription` and `startFileTranscription` return a
   `FluidAsrTranscription` handle with an idempotent `cancel()` operation.

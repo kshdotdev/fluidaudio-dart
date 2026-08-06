@@ -67,10 +67,24 @@ final class VadHostApiImpl: VadHostApi {
     let handler = downloadProgress.progressHandler(for: progressToken)
     Task {
       do {
-        let manager = try await VadManager(
-          config: VadConfig(defaultThreshold: Float(threshold)),
+        // Load through ModelHub at the resolved models root: VadManager's own
+        // default init resolves a private base directory that would ignore a
+        // host `setModelRoots` override.
+        let config = VadConfig(defaultThreshold: Float(threshold))
+        let models = try await ModelHub.loadModels(
+          .vad, modelNames: Array(ModelNames.VAD.requiredModels),
+          directory: ModelPaths.modelsRoot,
+          computeUnits: config.computeUnits,
           progressHandler: handler
         )
+        guard let vadModel = models[ModelNames.VAD.sileroVadFile] else {
+          throw PigeonError(
+            code: "VadModelMissing",
+            message: "The VAD model was not present after loading.",
+            details: nil)
+        }
+        let manager = VadManager(config: config, vadModel: vadModel)
+        ModelPaths.registerInstanceCreated()
         let id = self.registry.add(VadInstance(manager: manager))
         self.downloadProgress.emitCompleted(progressToken: progressToken)
         completion(.success(id))

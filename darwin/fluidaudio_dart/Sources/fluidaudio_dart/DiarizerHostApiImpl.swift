@@ -71,10 +71,12 @@ final class DiarizerHostApiImpl: DiarizerHostApi {
 
         // prepareModels() has no progress handler; load models explicitly so
         // first-run downloads surface progress like every other model load.
-        let models = try await OfflineDiarizerModels.load(progressHandler: handler)
+        let models = try await OfflineDiarizerModels.load(
+          from: ModelPaths.modelsRoot, progressHandler: handler)
         let manager = OfflineDiarizerManager(config: config)
         manager.initialize(models: models)
 
+        ModelPaths.registerInstanceCreated()
         let id = self.registry.add(DiarizerInstance(manager: manager))
         self.downloadProgress.emitCompleted(progressToken: progressToken)
         completion(.success(id))

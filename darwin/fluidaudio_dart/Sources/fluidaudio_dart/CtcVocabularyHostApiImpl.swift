@@ -38,8 +38,11 @@ final class CtcVocabularyHostApiImpl: CtcVocabularyHostApi {
         self.downloadProgress.emit(
           progressToken: progressToken,
           progress: DownloadProgress(fractionCompleted: 0.0, phase: .listing))
-        let models = try await CtcModels.downloadAndLoad(variant: .ctc110m)
-        let tokenizer = try await CtcTokenizer.load()
+        let ctcDirectory = ModelPaths.repoDirectory(CtcModelVariant.ctc110m.repo)
+        let models = try await CtcModels.downloadAndLoad(
+          to: ctcDirectory, variant: .ctc110m)
+        let tokenizer = try await CtcTokenizer.load(from: ctcDirectory)
+        ModelPaths.registerInstanceCreated()
 
         let vocabularyTerms = terms.map { term in
           CustomVocabularyTerm(
@@ -90,7 +93,7 @@ final class CtcVocabularyHostApiImpl: CtcVocabularyHostApi {
         let rescorer = try await VocabularyRescorer.create(
           spotter: spotter,
           vocabulary: context,
-          ctcModelDirectory: CtcModels.defaultCacheDirectory(for: instance.models.variant)
+          ctcModelDirectory: ModelPaths.repoDirectory(instance.models.variant.repo)
         )
         let spot = try await spotter.spotKeywordsWithLogProbs(
           audioSamples: samples, customVocabulary: context)
