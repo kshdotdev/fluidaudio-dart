@@ -26,6 +26,12 @@
 - VAD creation now loads through `ModelHub` at the resolved models root;
   behavior at the default root is unchanged.
 
+## 0.4.0 — 2026-07-29
+
+Published 2026-08-06. The batch-ASR cancellation block below landed on main
+after the 0.4.0 heading was written but before the version was published, so
+it ships in 0.4.0.
+
 **Batch ASR cancellation**
 - `FluidAsr.startTranscription` and `startFileTranscription` return a
   `FluidAsrTranscription` handle with an idempotent `cancel()` operation.
@@ -36,8 +42,6 @@
 - Native cancellation is reported as
   `FluidOperationCancelledException`. Existing `transcribe` and
   `transcribeFile` source compatibility is preserved.
-
-## 0.4.0 — 2026-07-29
 
 **Breaking — `ModelKind` widened**
 - Four cases were appended to `ModelKind`: `diarizer`, `ctc110m`, `kokoro`,
