@@ -11,6 +11,7 @@ export 'src/ctc_vocabulary.dart'
 export 'src/diarizer.dart'
     show
         FluidChunkEmbedding,
+        FluidDiarizationOperation,
         FluidDiarizationResult,
         FluidDiarizationSegment,
         FluidDiarizationTimings,
