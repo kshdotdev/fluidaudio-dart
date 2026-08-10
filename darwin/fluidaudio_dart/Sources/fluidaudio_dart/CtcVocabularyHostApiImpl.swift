@@ -38,8 +38,27 @@ final class CtcVocabularyHostApiImpl: CtcVocabularyHostApi {
         self.downloadProgress.emit(
           progressToken: progressToken,
           progress: DownloadProgress(fractionCompleted: 0.0, phase: .listing))
-        let models = try await CtcModels.downloadAndLoad(variant: .ctc110m)
-        let tokenizer = try await CtcTokenizer.load()
+        let ctcDirectory = ModelPaths.repoDirectory(CtcModelVariant.ctc110m.repo)
+        let models = try await CtcModels.downloadAndLoad(
+          to: ctcDirectory, variant: .ctc110m)
+        let tokenizer = try await CtcTokenizer.load(from: ctcDirectory)
+        // Upstream streaming vocabulary boosting re-resolves the tokenizer
+        // from the DEFAULT cache with no directory hook
+        // (SlidingWindowAsrManager.configureVocabularyBoosting), so mirror
+        // tokenizer.json there when a host models root is active.
+        let defaultDirectory = CtcModels.defaultCacheDirectory(for: .ctc110m)
+        if defaultDirectory.path != ctcDirectory.path {
+          let fileManager = FileManager.default
+          try fileManager.createDirectory(
+            at: defaultDirectory, withIntermediateDirectories: true)
+          let source = ctcDirectory.appendingPathComponent("tokenizer.json")
+          let target = defaultDirectory.appendingPathComponent("tokenizer.json")
+          if fileManager.fileExists(atPath: target.path) {
+            try fileManager.removeItem(at: target)
+          }
+          try fileManager.copyItem(at: source, to: target)
+        }
+        ModelPaths.registerInstanceCreated()
 
         let vocabularyTerms = terms.map { term in
           CustomVocabularyTerm(
@@ -90,7 +109,7 @@ final class CtcVocabularyHostApiImpl: CtcVocabularyHostApi {
         let rescorer = try await VocabularyRescorer.create(
           spotter: spotter,
           vocabulary: context,
-          ctcModelDirectory: CtcModels.defaultCacheDirectory(for: instance.models.variant)
+          ctcModelDirectory: ModelPaths.repoDirectory(instance.models.variant.repo)
         )
         let spot = try await spotter.spotKeywordsWithLogProbs(
           audioSamples: samples, customVocabulary: context)

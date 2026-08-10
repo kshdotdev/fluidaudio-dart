@@ -73,6 +73,7 @@ final class AsrHostApiImpl: AsrHostApi {
     Task {
       do {
         let models = try await AsrModels.downloadAndLoad(
+          to: ModelPaths.asrRepoDirectory(modelVersion),
           version: modelVersion, progressHandler: handler)
         let config = ASRConfig(
           tdtConfig: TdtConfig(blankId: modelVersion.blankId),
@@ -80,6 +81,7 @@ final class AsrHostApiImpl: AsrHostApi {
         )
         let manager = AsrManager(config: config)
         try await manager.loadModels(models)
+        ModelPaths.registerInstanceCreated()
         let id = self.registry.add(AsrInstance(manager: manager, version: modelVersion))
         self.downloadProgress.emitCompleted(progressToken: progressToken)
         completion(.success(id))

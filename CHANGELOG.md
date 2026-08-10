@@ -2,16 +2,29 @@
 
 ## Unreleased
 
-**Batch ASR cancellation**
-- `FluidAsr.startTranscription` and `startFileTranscription` return a
-  `FluidAsrTranscription` handle with an idempotent `cancel()` operation.
-- One-shot inference now carries an operation id across Pigeon and is retained
-  as a native Swift task. Cancellation waits for that task to unwind; disposing
-  a recognizer cancels and awaits every active transcription before CoreML
-  model cleanup.
-- Native cancellation is reported as
-  `FluidOperationCancelledException`. Existing `transcribe` and
-  `transcribeFile` source compatibility is preserved.
+**Host-managed model roots**
+- `FluidModels.setModelRoots(FluidModelRoots?)` / `modelRoots()` point every
+  model kind at host-managed directories instead of FluidAudio's own caches.
+  `modelsRoot` covers ASR, VAD, diarizer, EOU, and CTC repos
+  (`<modelsRoot>/<repoFolderName>/<files>`); `ttsRoot` covers the TTS tree.
+  `cacheDirectory(kind)` reports the resolved per-kind path, so hosts can
+  verify their layout through the existing API.
+- Roots must be set before any model instance exists; the native side rejects
+  later mutation (`ModelRootsLocked`) because compiled models are cached per
+  process, and rejects paths that are not existing directories
+  (`ModelRootsInvalid`). Pair a host-managed root with `setOfflineMode(true)`
+  so a missing pinned artifact fails loudly instead of being re-downloaded
+  from HuggingFace into the host's directory.
+- Known upstream limitation: the English Kokoro G2P assets always resolve from
+  FluidAudio's own TTS cache (`G2PModel` has no directory hook). `download`
+  and `isDownloaded` for `ModelKind.kokoro` therefore stage and probe the G2P
+  assets at the default cache even when a `ttsRoot` override is active.
+- Upstream streaming vocabulary boosting re-resolves the CTC tokenizer from
+  the default cache with no directory hook; loading a CTC vocabulary under a
+  host models root mirrors `tokenizer.json` into the default cache so
+  `configureVocabulary` on a streaming recognizer keeps working.
+- VAD creation now loads through `ModelHub` at the resolved models root;
+  behavior at the default root is unchanged.
 
 **Offline diarization cancellation**
 - `FluidDiarizer.startDiarization` and `startFileDiarization` return a
@@ -26,6 +39,21 @@
   `diarizeFile` calls remain source-compatible.
 
 ## 0.4.0 — 2026-07-29
+
+Published 2026-08-06. The batch-ASR cancellation block below landed on main
+after the 0.4.0 heading was written but before the version was published, so
+it ships in 0.4.0.
+
+**Batch ASR cancellation**
+- `FluidAsr.startTranscription` and `startFileTranscription` return a
+  `FluidAsrTranscription` handle with an idempotent `cancel()` operation.
+- One-shot inference now carries an operation id across Pigeon and is retained
+  as a native Swift task. Cancellation waits for that task to unwind; disposing
+  a recognizer cancels and awaits every active transcription before CoreML
+  model cleanup.
+- Native cancellation is reported as
+  `FluidOperationCancelledException`. Existing `transcribe` and
+  `transcribeFile` source compatibility is preserved.
 
 **Breaking — `ModelKind` widened**
 - Four cases were appended to `ModelKind`: `diarizer`, `ctc110m`, `kokoro`,

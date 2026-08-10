@@ -81,6 +81,7 @@ final class EouHostApiImpl: EouHostApi {
         try await manager.loadModels(
           to: EouModelCache.modelsRoot, configuration: nil, progressHandler: handler)
 
+        ModelPaths.registerInstanceCreated()
         let instance = EouInstance(manager: manager)
         let id = self.registry.add(instance)
         await manager.setPartialCallback { text in

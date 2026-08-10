@@ -701,6 +701,52 @@ struct VadStreamEventMessage: Hashable, CustomStringConvertible {
   }
 }
 
+/// Host-managed model root directories. Null fields fall back to FluidAudio's
+/// own caches.
+///
+/// Generated class from Pigeon that represents data sent in messages.
+struct ModelRootsMessage: Hashable, CustomStringConvertible {
+  /// Directory containing one subdirectory per model repo
+  /// (`<modelsRoot>/<repoFolderName>/<files>`).
+  var modelsRoot: String? = nil
+  /// Directory used for TTS voice and cache artifacts.
+  var ttsRoot: String? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> ModelRootsMessage? {
+    let modelsRoot: String? = nilOrValue(pigeonVar_list[0])
+    let ttsRoot: String? = nilOrValue(pigeonVar_list[1])
+
+    return ModelRootsMessage(
+      modelsRoot: modelsRoot,
+      ttsRoot: ttsRoot
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      modelsRoot,
+      ttsRoot,
+    ]
+  }
+  static func == (lhs: ModelRootsMessage, rhs: ModelRootsMessage) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return MessagesPigeonInternal.deepEquals(lhs.modelsRoot, rhs.modelsRoot) && MessagesPigeonInternal.deepEquals(lhs.ttsRoot, rhs.ttsRoot)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("ModelRootsMessage")
+    MessagesPigeonInternal.deepHash(value: modelsRoot, hasher: &hasher)
+    MessagesPigeonInternal.deepHash(value: ttsRoot, hasher: &hasher)
+  }
+
+  public var description: String {
+    return "ModelRootsMessage(modelsRoot: \(String(describing: modelsRoot)), ttsRoot: \(String(describing: ttsRoot)))"
+  }
+}
+
 /// Generated class from Pigeon that represents data sent in messages.
 struct StreamingConfigMessage: Hashable, CustomStringConvertible {
   var chunkSeconds: Double? = nil
@@ -1564,34 +1610,36 @@ private class MessagesPigeonCodecReader: FlutterStandardReader {
     case 144:
       return VadStreamEventMessage.fromList(self.readValue() as! [Any?])
     case 145:
-      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
+      return ModelRootsMessage.fromList(self.readValue() as! [Any?])
     case 146:
-      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
+      return StreamingConfigMessage.fromList(self.readValue() as! [Any?])
     case 147:
-      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationSegmentMessage.fromList(self.readValue() as! [Any?])
     case 148:
-      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
+      return SpeakerEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 149:
-      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
+      return ChunkEmbeddingMessage.fromList(self.readValue() as! [Any?])
     case 150:
-      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationTimingsMessage.fromList(self.readValue() as! [Any?])
     case 151:
-      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationResultMessage.fromList(self.readValue() as! [Any?])
     case 152:
-      return EouEventMessage.fromList(self.readValue() as! [Any?])
+      return DiarizationProgressMessage.fromList(self.readValue() as! [Any?])
     case 153:
-      return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
+      return EouEventMessage.fromList(self.readValue() as! [Any?])
     case 154:
-      return VocabularyRescoreMessage.fromList(self.readValue() as! [Any?])
+      return VocabularyTermMessage.fromList(self.readValue() as! [Any?])
     case 155:
-      return TtsResultMessage.fromList(self.readValue() as! [Any?])
+      return VocabularyRescoreMessage.fromList(self.readValue() as! [Any?])
     case 156:
-      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
+      return TtsResultMessage.fromList(self.readValue() as! [Any?])
     case 157:
-      return MicFrameMessage.fromList(self.readValue() as! [Any?])
+      return TtsChunkMessage.fromList(self.readValue() as! [Any?])
     case 158:
-      return CaptureHealthMessage.fromList(self.readValue() as! [Any?])
+      return MicFrameMessage.fromList(self.readValue() as! [Any?])
     case 159:
+      return CaptureHealthMessage.fromList(self.readValue() as! [Any?])
+    case 160:
       return AudioProcessMessage.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
@@ -1649,50 +1697,53 @@ private class MessagesPigeonCodecWriter: FlutterStandardWriter {
     } else if let value = value as? VadStreamEventMessage {
       super.writeByte(144)
       super.writeValue(value.toList())
-    } else if let value = value as? StreamingConfigMessage {
+    } else if let value = value as? ModelRootsMessage {
       super.writeByte(145)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationSegmentMessage {
+    } else if let value = value as? StreamingConfigMessage {
       super.writeByte(146)
       super.writeValue(value.toList())
-    } else if let value = value as? SpeakerEmbeddingMessage {
+    } else if let value = value as? DiarizationSegmentMessage {
       super.writeByte(147)
       super.writeValue(value.toList())
-    } else if let value = value as? ChunkEmbeddingMessage {
+    } else if let value = value as? SpeakerEmbeddingMessage {
       super.writeByte(148)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationTimingsMessage {
+    } else if let value = value as? ChunkEmbeddingMessage {
       super.writeByte(149)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationResultMessage {
+    } else if let value = value as? DiarizationTimingsMessage {
       super.writeByte(150)
       super.writeValue(value.toList())
-    } else if let value = value as? DiarizationProgressMessage {
+    } else if let value = value as? DiarizationResultMessage {
       super.writeByte(151)
       super.writeValue(value.toList())
-    } else if let value = value as? EouEventMessage {
+    } else if let value = value as? DiarizationProgressMessage {
       super.writeByte(152)
       super.writeValue(value.toList())
-    } else if let value = value as? VocabularyTermMessage {
+    } else if let value = value as? EouEventMessage {
       super.writeByte(153)
       super.writeValue(value.toList())
-    } else if let value = value as? VocabularyRescoreMessage {
+    } else if let value = value as? VocabularyTermMessage {
       super.writeByte(154)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsResultMessage {
+    } else if let value = value as? VocabularyRescoreMessage {
       super.writeByte(155)
       super.writeValue(value.toList())
-    } else if let value = value as? TtsChunkMessage {
+    } else if let value = value as? TtsResultMessage {
       super.writeByte(156)
       super.writeValue(value.toList())
-    } else if let value = value as? MicFrameMessage {
+    } else if let value = value as? TtsChunkMessage {
       super.writeByte(157)
       super.writeValue(value.toList())
-    } else if let value = value as? CaptureHealthMessage {
+    } else if let value = value as? MicFrameMessage {
       super.writeByte(158)
       super.writeValue(value.toList())
-    } else if let value = value as? AudioProcessMessage {
+    } else if let value = value as? CaptureHealthMessage {
       super.writeByte(159)
+      super.writeValue(value.toList())
+    } else if let value = value as? AudioProcessMessage {
+      super.writeByte(160)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -1787,6 +1838,13 @@ class SystemHostApiSetup {
 }
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol ModelsHostApi {
+  /// Points every model kind at host-managed directories.
+  ///
+  /// Must be called before any model instance exists; passing null (or null
+  /// fields) restores FluidAudio's own caches.
+  func setModelRoots(roots: ModelRootsMessage?, completion: @escaping (Result<Void, Error>) -> Void)
+  /// The roots currently in effect, with defaults resolved to real paths.
+  func modelRoots(completion: @escaping (Result<ModelRootsMessage, Error>) -> Void)
   func isDownloaded(kind: ModelKindMessage, completion: @escaping (Result<Bool, Error>) -> Void)
   /// Downloads [kind], reporting progress on the `downloadProgress` stream
   /// tagged with [progressToken]. Completes when the download finishes.
@@ -1803,6 +1861,43 @@ class ModelsHostApiSetup {
   /// Sets up an instance of `ModelsHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: ModelsHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
+    /// Points every model kind at host-managed directories.
+    ///
+    /// Must be called before any model instance exists; passing null (or null
+    /// fields) restores FluidAudio's own caches.
+    let setModelRootsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.setModelRoots\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      setModelRootsChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let rootsArg: ModelRootsMessage? = nilOrValue(args[0])
+        api.setModelRoots(roots: rootsArg) { result in
+          switch result {
+          case .success:
+            reply(wrapResult(nil))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      setModelRootsChannel.setMessageHandler(nil)
+    }
+    /// The roots currently in effect, with defaults resolved to real paths.
+    let modelRootsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.modelRoots\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      modelRootsChannel.setMessageHandler { _, reply in
+        api.modelRoots { result in
+          switch result {
+          case .success(let res):
+            reply(wrapResult(res))
+          case .failure(let error):
+            reply(wrapError(error))
+          }
+        }
+      }
+    } else {
+      modelRootsChannel.setMessageHandler(nil)
+    }
     let isDownloadedChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.fluidaudio_dart.ModelsHostApi.isDownloaded\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       isDownloadedChannel.setMessageHandler { message, reply in

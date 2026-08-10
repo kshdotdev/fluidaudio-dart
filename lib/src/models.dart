@@ -7,6 +7,40 @@ import 'exceptions.dart';
 import 'messages.g.dart' as messages;
 import 'types.dart';
 
+/// Host-managed model root directories.
+///
+/// [modelsRoot] replaces FluidAudio's ASR/VAD/diarizer/EOU/CTC cache; it must
+/// contain one subdirectory per model repo, named exactly as the upstream
+/// repo folder (`<modelsRoot>/<repoFolderName>/<files>` — see
+/// [FluidModels.cacheDirectory] for the resolved per-kind path). [ttsRoot]
+/// replaces the TTS assets cache. Null fields keep FluidAudio's defaults.
+final class FluidModelRoots {
+  /// Creates a roots override; null fields keep FluidAudio's defaults.
+  const FluidModelRoots({this.modelsRoot, this.ttsRoot});
+
+  /// Root for ASR, VAD, diarizer, EOU, and CTC model repos.
+  final String? modelsRoot;
+
+  /// Root for TTS voice and cache artifacts.
+  ///
+  /// Upstream limitation: the English Kokoro G2P assets are always resolved
+  /// from FluidAudio's own TTS cache and do not honor this override.
+  final String? ttsRoot;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FluidModelRoots &&
+      other.modelsRoot == modelsRoot &&
+      other.ttsRoot == ttsRoot;
+
+  @override
+  int get hashCode => Object.hash(modelsRoot, ttsRoot);
+
+  @override
+  String toString() =>
+      'FluidModelRoots(modelsRoot: $modelsRoot, ttsRoot: $ttsRoot)';
+}
+
 /// Model download, cache and offline management.
 ///
 /// Models are pulled from HuggingFace (`FluidInference/*`) on first use and
@@ -82,4 +116,36 @@ class FluidModels {
   /// touch the network fails instead. Set before loading any model.
   Future<void> setOfflineMode(bool enabled) =>
       wrapPlatformErrors(() => _hostApi.setOfflineMode(enabled));
+
+  /// Points every model kind at host-managed directories.
+  ///
+  /// [FluidModelRoots.modelsRoot] must contain one subdirectory per repo,
+  /// named exactly as the upstream repo folder — [cacheDirectory] reports the
+  /// resolved per-kind path for layout verification. Call before creating any
+  /// recognizer, VAD, diarizer, EOU, or TTS instance; the native side rejects
+  /// mutation afterwards because compiled models are cached per process.
+  /// Passing null (or null fields) restores FluidAudio's own caches.
+  ///
+  /// Pair a host-managed root with [setOfflineMode] `(true)` so a missing
+  /// pinned artifact fails loudly instead of being silently re-downloaded
+  /// from HuggingFace into the host's directory.
+  Future<void> setModelRoots(FluidModelRoots? roots) => wrapPlatformErrors(
+        () => _hostApi.setModelRoots(
+          roots == null
+              ? null
+              : messages.ModelRootsMessage(
+                  modelsRoot: roots.modelsRoot,
+                  ttsRoot: roots.ttsRoot,
+                ),
+        ),
+      );
+
+  /// The roots currently in effect, with defaults resolved to real paths.
+  Future<FluidModelRoots> modelRoots() => wrapPlatformErrors(() async {
+        final roots = await _hostApi.modelRoots();
+        return FluidModelRoots(
+          modelsRoot: roots.modelsRoot,
+          ttsRoot: roots.ttsRoot,
+        );
+      });
 }
