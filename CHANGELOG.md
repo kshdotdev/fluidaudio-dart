@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — 2026-08-11
 
 **Host-managed model roots**
 - `FluidModels.setModelRoots(FluidModelRoots?)` / `modelRoots()` point every
