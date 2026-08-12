@@ -116,6 +116,8 @@ class FluidDiarizer {
   final int _instanceId;
   final FluidEventHub _events;
   bool _disposed = false;
+  int _nextOperationId = 1;
+  Future<void>? _disposeFuture;
 
   /// Loads diarizer models (~20 MB; auto-downloads on first use).
   ///
@@ -152,25 +154,70 @@ class FluidDiarizer {
       _events.diarizationProgressFor(_instanceId);
 
   /// Diarizes 16 kHz mono float32 [samples].
-  Future<FluidDiarizationResult> diarize(Float32List samples) async {
+  ///
+  /// For an operation that can be cancelled while native inference is in
+  /// progress, use [startDiarization].
+  Future<FluidDiarizationResult> diarize(Float32List samples) =>
+      startDiarization(samples).result;
+
+  /// Starts cancellable diarization of 16 kHz mono float32 [samples].
+  ///
+  /// Calling [FluidDiarizationOperation.cancel] requests cooperative native
+  /// cancellation and waits until FluidAudio's retained task has unwound.
+  FluidDiarizationOperation startDiarization(Float32List samples) {
     _checkNotDisposed();
-    final result = await wrapPlatformErrors(
-        () => _hostApi.diarizeSamples(_instanceId, floatsToBytes(samples)));
-    return _mapResult(result);
+    final operationId = _allocateOperationId();
+    final result = wrapPlatformErrors(
+        () => _hostApi.diarizeSamples(_instanceId, operationId, floatsToBytes(samples)))
+        .then(_mapResult);
+    return FluidDiarizationOperation._(
+      operationId: operationId,
+      result: result,
+      cancel: () => wrapPlatformErrors(() => _hostApi.cancel(_instanceId, operationId)),
+    );
   }
 
   /// Diarizes an audio file (resampled internally; disk-backed for long files).
-  Future<FluidDiarizationResult> diarizeFile(String path) async {
+  ///
+  /// For an operation that can be cancelled while native inference is in
+  /// progress, use [startFileDiarization].
+  Future<FluidDiarizationResult> diarizeFile(String path) =>
+      startFileDiarization(path).result;
+
+  /// Starts cancellable diarization of an audio file.
+  ///
+  /// FluidAudio resamples supported file formats internally and uses a
+  /// disk-backed source for long files.
+  FluidDiarizationOperation startFileDiarization(String path) {
     _checkNotDisposed();
-    final result = await wrapPlatformErrors(() => _hostApi.diarizeFile(_instanceId, path));
-    return _mapResult(result);
+    final operationId = _allocateOperationId();
+    final result = wrapPlatformErrors(
+        () => _hostApi.diarizeFile(_instanceId, operationId, path)).then(_mapResult);
+    return FluidDiarizationOperation._(
+      operationId: operationId,
+      result: result,
+      cancel: () => wrapPlatformErrors(() => _hostApi.cancel(_instanceId, operationId)),
+    );
   }
 
-  Future<void> dispose() async {
-    if (_disposed) return;
+  /// Cancels active diarizations, then releases the native models.
+  ///
+  /// The instance is unusable as soon as disposal begins. Concurrent and
+  /// repeated calls share the same completion.
+  Future<void> dispose() {
+    final existing = _disposeFuture;
+    if (existing != null) return existing;
     _disposed = true;
     nativeDisposeFinalizer.detach(this);
-    await wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
+    final future = wrapPlatformErrors(() => _hostApi.dispose(_instanceId));
+    _disposeFuture = future;
+    return future;
+  }
+
+  int _allocateOperationId() {
+    final id = _nextOperationId;
+    _nextOperationId += 1;
+    return id;
   }
 
   void _checkNotDisposed() {
@@ -239,5 +286,43 @@ class FluidDiarizer {
     final aligned = Uint8List.fromList(bytes);
     return aligned.buffer
         .asFloat64List(0, aligned.lengthInBytes ~/ Float64List.bytesPerElement);
+  }
+}
+
+/// A running offline diarization operation.
+///
+/// The operation belongs to the [FluidDiarizer] that created it. Cancellation
+/// is idempotent and does not dispose that diarizer, so later operations can
+/// reuse its loaded models.
+final class FluidDiarizationOperation {
+  FluidDiarizationOperation._({
+    required this.operationId,
+    required this.result,
+    required Future<void> Function() cancel,
+  }) : _requestCancel = cancel;
+
+  /// Caller-visible identity carried through the native channel boundary.
+  final int operationId;
+
+  /// The diarization result, or a [FluidOperationCancelledException] after
+  /// cancellation.
+  final Future<FluidDiarizationResult> result;
+
+  final Future<void> Function() _requestCancel;
+  Future<void>? _cancellation;
+
+  /// Whether [cancel] has been called for this operation.
+  bool get isCancellationRequested => _cancellation != null;
+
+  /// Requests cooperative native cancellation and waits for inference to stop.
+  ///
+  /// Repeated calls share the same completion. Calling this after the operation
+  /// has already finished is a successful no-op.
+  Future<void> cancel() {
+    final existing = _cancellation;
+    if (existing != null) return existing;
+    final future = _requestCancel();
+    _cancellation = future;
+    return future;
   }
 }
